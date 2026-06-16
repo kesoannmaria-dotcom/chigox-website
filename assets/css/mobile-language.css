@@ -1,0 +1,37 @@
+@media (max-width: 620px) {
+  .main-nav .language-menu {
+    width: 100%;
+    order: 20;
+  }
+
+  .main-nav .language-menu summary {
+    min-height: 42px;
+    width: 100%;
+    justify-content: space-between;
+    padding: 0 14px;
+    border: 1px solid #d8e7ef;
+    border-radius: 6px;
+    background: #f8fcfe;
+    color: #123b63;
+  }
+
+  .main-nav .language-menu[open] summary {
+    border-color: #0f6fb8;
+    background: #eef7fb;
+    color: #0f6fb8;
+  }
+
+  .main-nav .language-list {
+    position: static;
+    width: 100%;
+    max-height: none;
+    margin-top: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    box-shadow: none;
+  }
+
+  .main-nav .language-list a {
+    min-height: 40px;
+    white-space: normal;
+  }
+}

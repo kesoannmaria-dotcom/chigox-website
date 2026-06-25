@@ -1,0 +1,52 @@
+.endoscopy-spec-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.endoscopy-spec-wrap .spec-table {
+  min-width: 980px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.endoscopy-spec-wrap .spec-table th {
+  width: auto;
+}
+
+.endoscopy-spec-wrap .spec-table th,
+.endoscopy-spec-wrap .spec-table td {
+  padding: 13px 11px;
+  font-size: 14px;
+}
+
+.endoscopy-spec-wrap .spec-table thead th {
+  color: #fff;
+  background: var(--blue-dark);
+  white-space: nowrap;
+}
+
+.endoscopy-spec-wrap .spec-table tbody tr:nth-child(even) th,
+.endoscopy-spec-wrap .spec-table tbody tr:nth-child(even) td {
+  background: #f5fafc;
+}
+
+.product-hero.no-product-image {
+  grid-template-columns: minmax(0, 900px);
+}
+
+.pending-image-note {
+  max-width: 760px;
+  padding: 18px 20px;
+  border-left: 4px solid var(--teal);
+  background: #f6fafc;
+  color: var(--muted);
+}
+
+.endoscopy-category-note {
+  margin-top: 24px;
+  color: var(--muted);
+}

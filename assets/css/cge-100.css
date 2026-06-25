@@ -1,0 +1,58 @@
+.cge100-specs-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cge100-specs-wrap .spec-table {
+  min-width: 1200px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.cge100-specs-wrap .spec-table th {
+  width: auto;
+}
+
+.cge100-specs-wrap .spec-table th,
+.cge100-specs-wrap .spec-table td {
+  padding: 13px 11px;
+  font-size: 14px;
+}
+
+.cge100-specs-wrap .spec-table thead th {
+  color: #fff;
+  background: var(--blue-dark);
+  white-space: nowrap;
+}
+
+.cge100-specs-wrap .spec-table tbody th {
+  min-width: 190px;
+  white-space: nowrap;
+}
+
+.cge100-specs-wrap .spec-table tbody tr:nth-child(even) th,
+.cge100-specs-wrap .spec-table tbody tr:nth-child(even) td {
+  background: #f5fafc;
+}
+
+.cge100-basic-info {
+  align-self: start;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.cge100-basic-info h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 620px) {
+  .cge100-basic-info {
+    padding: 18px;
+  }
+}

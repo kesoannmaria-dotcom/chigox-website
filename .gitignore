@@ -2,3 +2,8 @@
 .wrangler/
 *.zip
 _docs/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.dev.vars.example

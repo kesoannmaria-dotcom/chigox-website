@@ -1,0 +1,9 @@
+{
+  "name": "chigox-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:inquiry": "node --test tests/inquiry-function.test.mjs",
+    "test": "npm run test:inquiry"
+  }
+}

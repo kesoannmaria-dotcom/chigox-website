@@ -235,7 +235,8 @@
       if (!config.enabled || !config.site_key || config.action !== "inquiry_form") return;
       await Promise.all(forms.map((form) => initializeForm(form, config, turnstile)));
     } catch {
-      // Preserve the existing mailto behavior until the server-side service is configured.
+      // Never fall back to an external mail client or a non-HTTPS endpoint.
+      // The form action remains the same-origin API route.
     }
   };
 

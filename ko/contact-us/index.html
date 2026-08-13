@@ -127,7 +127,7 @@
     </nav>
   </header>
   <main><section class="page-hero"><p class="eyebrow">문의하기</p><h1>CHIGOX 문의</h1><p>Send your inquiry for product configuration, quotation, application guidance, or distributor cooperation.</p></section>
-  <section class="contact-layout sales-contact-section"><div class="contact-card sales-contact-card"><h2>영업 문의</h2><dl class="contact-list"><div><dt>이메일</dt><dd><a href="mailto:info@chigox.com">info@chigox.com</a></dd></div><div><dt>WhatsApp</dt><dd><a href="https://wa.me/message/IQLUGPTJSLQII1">+86 13979951941</a></dd></div><div><dt>주요 시장</dt><dd>남미, 유럽, 아프리카, 중동</dd></div></dl></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
+  <section class="contact-layout sales-contact-section"><div class="contact-card sales-contact-card"><h2>영업 문의</h2><dl class="contact-list"><div><dt>이메일</dt><dd><a href="mailto:info@chigox.com">info@chigox.com</a></dd></div><div><dt>WhatsApp</dt><dd><a href="https://wa.me/message/IQLUGPTJSLQII1">+86 13979951941</a></dd></div><div><dt>주요 시장</dt><dd>남미, 유럽, 아프리카, 중동</dd></div></dl></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
     <label>이름<input name="이름" required></label>
     <label>이메일<input name="이메일" type="email" required></label>
     <label>회사<input name="회사"></label>
@@ -204,5 +204,6 @@
   });
 })();
 </script>
+<script src="/assets/js/inquiry-form.js" defer></script>
 </body>
 </html>

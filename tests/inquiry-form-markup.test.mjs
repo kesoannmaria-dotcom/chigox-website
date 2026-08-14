@@ -16,8 +16,11 @@ function collectHtml(directory) {
 }
 
 function inquiryForms(html) {
-  return [...html.matchAll(/<form\b[^>]*class="[^"]*\binquiry-form\b[^"]*"[^>]*>/gi)].map((match) => match[0]);
+  return [...html.matchAll(/<form\b[^>]*class="[^"]*\binquiry-form\b[^"]*"[^>]*>([\s\S]*?)<\/form>/gi)];
 }
+
+const FORM_FIELD_NAMES = ["company", "email", "message", "name", "product"];
+const NON_CANONICAL_MACHINE_NAMES = /\bname="(?:Name|Email|Company|Product|Message|Unternehmen|Produkt|Nachricht|E-Mail|Nombre|Correo electrónico|Empresa|Producto|Mensaje|Nome|Azienda|Prodotto|Messaggio|이름|이메일|회사|제품|메시지|Imię|E-mail|Firma|Wiadomość|Ad|E-posta|Şirket|Ürün|Mesaj)"/;
 
 test("all inquiry forms submit only to the same-origin HTTPS API", () => {
   const affectedFiles = [];
@@ -27,9 +30,14 @@ test("all inquiry forms submit only to the same-origin HTTPS API", () => {
     if (!forms.length) continue;
     affectedFiles.push(filePath);
     for (const form of forms) {
-      assert.match(form, /\baction="\/api\/inquiry"/i, `${filePath} must use /api/inquiry`);
-      assert.doesNotMatch(form, /\baction="(?:http:|mailto:)/i, `${filePath} has an unsafe form action`);
-      assert.match(form, /\bmethod="post"/i, `${filePath} must POST`);
+      const [markup, body] = form;
+      assert.match(markup, /\baction="\/api\/inquiry"/i, `${filePath} must use /api/inquiry`);
+      assert.doesNotMatch(markup, /\baction="(?:http:|mailto:)/i, `${filePath} has an unsafe form action`);
+      assert.match(markup, /\bmethod="post"/i, `${filePath} must POST`);
+      const fieldNames = [...body.matchAll(/<(?:input|textarea)\b[^>]*\bname="([^"]+)"/gi)]
+        .map((match) => match[1])
+        .sort();
+      assert.deepEqual(fieldNames, FORM_FIELD_NAMES, `${filePath} must use only canonical machine field names`);
     }
     assert.match(html, /<script\s+src="\/assets\/js\/inquiry-form\.js"\s+defer><\/script>/i, `${filePath} must load the shared secure submitter`);
   }
@@ -48,4 +56,25 @@ test("website source contains no HTTP form action or hard-coded HTTP API URL", (
     /(?:fetch|axios\.[a-z]+)\(\s*["']https?:\/\//,
     "Client must not call an absolute HTTP(S) API URL"
   );
+  assert.match(client, /new FormData\(form\)/);
+  for (const fieldName of FORM_FIELD_NAMES) {
+    assert.match(client, new RegExp(`readField\\(formData, "${fieldName}"\\)`));
+  }
+  assert.doesNotMatch(client, /Nombre|Correo electrónico|Unternehmen|이름|Imię|Ad/);
+});
+
+test("translated labels remain visible while machine field names stay canonical", () => {
+  const samples = [
+    ["contact-us/index.html", /<label>Name<input name="name" required><\/label>/],
+    ["es/contact-us/index.html", /<label>Nombre<input name="name" required><\/label>/],
+    ["de/contact-us/index.html", /<label>Unternehmen<input name="company"><\/label>/],
+  ];
+  for (const [relativePath, expectedMarkup] of samples) {
+    const html = fs.readFileSync(path.join(root, relativePath), "utf8");
+    assert.match(html, expectedMarkup, `${relativePath} must preserve translated visible copy`);
+  }
+  for (const filePath of collectHtml(root)) {
+    const html = fs.readFileSync(filePath, "utf8");
+    assert.doesNotMatch(html, NON_CANONICAL_MACHINE_NAMES, `${filePath} has a translated machine field name`);
+  }
 });

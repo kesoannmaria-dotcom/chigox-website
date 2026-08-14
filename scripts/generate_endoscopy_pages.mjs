@@ -305,7 +305,7 @@ function productMain(slug, p) {
   <section class="band"><div class="section-heading"><span>Specifications</span><h2>Technical Specifications</h2></div>${table(p)}</section>
   <section class="two-columns"><div><h2>Standard Configuration</h2>${list(p.standard)}</div><div><h2>Optional Accessories</h2>${list(p.optional)}</div></section>
   <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Request Quote</span><h2>Inquiry Form</h2><p>Share your market, application, and target configuration. The CHIGOX team will follow up by email.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
-    <label>Name<input name="Name" required></label><label>Email<input name="Email" type="email" required></label><label>Company<input name="Company"></label><label>Product<input name="Product" value="${p.title}"></label><label class="full">Message<textarea name="Message" rows="5" placeholder="Tell us your application, quantity, and target market."></textarea></label><button class="btn primary" type="submit">Send Inquiry</button>
+    <label>Name<input name="name" required></label><label>Email<input name="email" type="email" required></label><label>Company<input name="company"></label><label>Product<input name="product" value="${p.title}"></label><label class="full">Message<textarea name="message" rows="5" placeholder="Tell us your application, quantity, and target market."></textarea></label><button class="btn primary" type="submit">Send Inquiry</button>
   </form></section>
 </main>`;
 }

@@ -37,6 +37,7 @@ class FakeD1 {
     this.duplicateToken = options.duplicateToken || false;
     this.savedStatements = [];
     this.notificationUpdates = [];
+    this.notificationStatus = null;
   }
 
   prepare(sql) {
@@ -55,6 +56,7 @@ class FakeD1 {
     if (statement.sql.includes("UPDATE inquiries")) {
       this.events.push(`notification:${statement.parameters[0]}`);
       this.notificationUpdates.push(statement.parameters);
+      this.notificationStatus = statement.parameters[0];
       return { success: true };
     }
     throw new Error(`Unexpected run(): ${statement.sql}`);
@@ -65,6 +67,7 @@ class FakeD1 {
     if (this.failPersist) throw new Error("D1 persistence unavailable");
     if (this.duplicateToken) throw new Error("UNIQUE constraint failed: used_turnstile_tokens.token_hash");
     this.savedStatements = statements;
+    this.notificationStatus = "pending";
     return statements.map(() => ({ success: true }));
   }
 }
@@ -104,7 +107,32 @@ function makeRequest(body = makeBody()) {
   return request;
 }
 
-function makeEnv(db) {
+function makeStreamRequest(rawBody, { contentLength } = {}) {
+  const headers = new Headers({
+    origin: `https://${HOST}`,
+    "content-type": "application/json; charset=utf-8",
+    "cf-connecting-ip": "203.0.113.42",
+  });
+  if (contentLength !== undefined) headers.set("content-length", String(contentLength));
+  const bytes = new TextEncoder().encode(rawBody);
+  return {
+    url: API_URL,
+    headers,
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    }),
+    cf: { country: "CO" },
+  };
+}
+
+function makeBodyWithPadding(paddingLength) {
+  return JSON.stringify({ ...makeBody(), padding: "x".repeat(paddingLength) });
+}
+
+function makeEnv(db, overrides = {}) {
   return {
     INQUIRY_DB: db,
     TURNSTILE_SITE_KEY: "public-test-site-key",
@@ -113,6 +141,7 @@ function makeEnv(db) {
     RATE_LIMIT_SECRET: "private-rate-limit-secret",
     RESEND_API_KEY: "private-resend-test-key",
     INQUIRY_ENV: "preview",
+    ...overrides,
   };
 }
 
@@ -132,7 +161,10 @@ function makeFetch(options = {}) {
     }
     if (String(url).includes("api.resend.com")) {
       events.push("resend");
+      if (options.resendNetworkFailure) throw new Error("network unavailable");
       if (options.resendFailure) return Response.json({ message: "test failure" }, { status: 500 });
+      if (options.resendClientFailure) return Response.json({ message: "invalid request" }, { status: 400 });
+      if (options.resendInvalidJson) return new Response("not json", { status: 200 });
       return Response.json({ id: "resend-preview-id" });
     }
     throw new Error(`Unexpected fetch: ${url}`);
@@ -170,6 +202,7 @@ test("valid inquiry is verified, persisted, then emailed as an HTML table", asyn
     page_language: "en",
   });
   assert.deepEqual(events, ["rate-limit", "turnstile", "persist", "resend", "notification:sent"]);
+  assert.equal(db.notificationStatus, "sent");
 
   const resendCall = mocked.calls.find((call) => call.url.includes("api.resend.com"));
   const resendPayload = JSON.parse(resendCall.request.body);
@@ -288,7 +321,26 @@ test("database uniqueness protection rejects a concurrent duplicate token", asyn
   assert.deepEqual(events, ["rate-limit", "turnstile", "persist"]);
 });
 
-test("email provider failure does not erase an already saved lead", async () => {
+test("missing Resend configuration saves the inquiry with notification pending", async () => {
+  const events = [];
+  const db = new FakeD1({ events });
+  const mocked = makeFetch({ events });
+  const env = makeEnv(db, { RESEND_API_KEY: undefined });
+  const response = await handleInquiryPost(
+    { request: makeRequest(), env },
+    { ...dependencies, fetchImpl: mocked.fetchImpl },
+  );
+  const result = await responseJson(response);
+
+  assert.equal(response.status, 201);
+  assert.equal(result.lead_saved, true);
+  assert.equal(result.notification_sent, false);
+  assert.equal(db.notificationStatus, "pending");
+  assert.deepEqual(events, ["rate-limit", "turnstile", "persist"]);
+  assert.equal(mocked.calls.filter((call) => call.url.includes("api.resend.com")).length, 0);
+});
+
+test("Resend 500 does not erase an already saved lead", async () => {
   const events = [];
   const db = new FakeD1({ events });
   const mocked = makeFetch({ events, resendFailure: true });
@@ -304,9 +356,60 @@ test("email provider failure does not erase an already saved lead", async () => 
     assert.equal(result.lead_saved, true);
     assert.equal(result.notification_sent, false);
     assert.equal(result.analytics_event, "generate_lead");
+    assert.equal(db.notificationStatus, "failed");
     assert.deepEqual(events, ["rate-limit", "turnstile", "persist", "resend", "notification:failed"]);
   } finally {
     console.error = originalError;
+  }
+});
+
+test("Resend network failure does not erase an already saved lead", async () => {
+  const events = [];
+  const db = new FakeD1({ events });
+  const mocked = makeFetch({ events, resendNetworkFailure: true });
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const response = await handleInquiryPost(
+      { request: makeRequest(), env: makeEnv(db) },
+      { ...dependencies, fetchImpl: mocked.fetchImpl },
+    );
+    const result = await responseJson(response);
+    assert.equal(response.status, 201);
+    assert.equal(result.lead_saved, true);
+    assert.equal(result.notification_sent, false);
+    assert.equal(db.notificationStatus, "failed");
+    assert.deepEqual(events, ["rate-limit", "turnstile", "persist", "resend", "notification:failed"]);
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("Resend 4xx or invalid JSON does not erase an already saved lead", async (t) => {
+  for (const options of [
+    { name: "4xx", resendClientFailure: true },
+    { name: "invalid JSON", resendInvalidJson: true },
+  ]) {
+    await t.test(options.name, async () => {
+      const events = [];
+      const db = new FakeD1({ events });
+      const mocked = makeFetch({ events, ...options });
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const response = await handleInquiryPost(
+          { request: makeRequest(), env: makeEnv(db) },
+          { ...dependencies, fetchImpl: mocked.fetchImpl },
+        );
+        const result = await responseJson(response);
+        assert.equal(response.status, 201);
+        assert.equal(result.lead_saved, true);
+        assert.equal(db.notificationStatus, "failed");
+        assert.deepEqual(events, ["rate-limit", "turnstile", "persist", "resend", "notification:failed"]);
+      } finally {
+        console.error = originalError;
+      }
+    });
   }
 });
 
@@ -336,6 +439,50 @@ test("persistent rate limit blocks excessive attempts before Turnstile", async (
   assert.equal(response.status, 429);
   assert.equal(result.error, "rate_limited");
   assert.deepEqual(events, ["rate-limit"]);
+});
+
+test("a JSON body at or below 32768 bytes is accepted", async () => {
+  const rawBody = makeBodyWithPadding(30_000);
+  assert.ok(new TextEncoder().encode(rawBody).byteLength <= 32_768);
+  const db = new FakeD1();
+  const mocked = makeFetch();
+  const response = await handleInquiryPost(
+    { request: makeStreamRequest(rawBody), env: makeEnv(db) },
+    { ...dependencies, fetchImpl: mocked.fetchImpl },
+  );
+  assert.equal(response.status, 201);
+});
+
+test("an oversized streamed JSON body is rejected without Content-Length", async () => {
+  const rawBody = makeBodyWithPadding(33_000);
+  assert.ok(new TextEncoder().encode(rawBody).byteLength > 32_768);
+  const response = await handleInquiryPost(
+    { request: makeStreamRequest(rawBody), env: makeEnv(new FakeD1()) },
+    { ...dependencies, fetchImpl: makeFetch().fetchImpl },
+  );
+  const result = await responseJson(response);
+  assert.equal(response.status, 413);
+  assert.equal(response.statusText, "Payload Too Large");
+  assert.equal(result.error, "payload_too_large");
+});
+
+test("a forged smaller Content-Length cannot bypass the byte limit", async () => {
+  const rawBody = makeBodyWithPadding(33_000);
+  const response = await handleInquiryPost(
+    { request: makeStreamRequest(rawBody, { contentLength: 1 }), env: makeEnv(new FakeD1()) },
+    { ...dependencies, fetchImpl: makeFetch().fetchImpl },
+  );
+  assert.equal(response.status, 413);
+});
+
+test("invalid JSON returns 400 after the body stream is read safely", async () => {
+  const response = await handleInquiryPost(
+    { request: makeStreamRequest('{"name":'), env: makeEnv(new FakeD1()) },
+    { ...dependencies, fetchImpl: makeFetch().fetchImpl },
+  );
+  const result = await responseJson(response);
+  assert.equal(response.status, 400);
+  assert.equal(result.error, "invalid_json");
 });
 
 test("email template escapes all customer-supplied HTML", () => {

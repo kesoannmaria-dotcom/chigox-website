@@ -64,11 +64,8 @@
   };
 
   const readField = (formData, name) => {
-    const target = name.toLowerCase();
-    for (const [key, value] of formData.entries()) {
-      if (key.toLowerCase() === target && typeof value === "string") return value;
-    }
-    return "";
+    const value = formData.get(name);
+    return typeof value === "string" ? value : "";
   };
 
   const createSubmissionId = () => {
@@ -107,7 +104,7 @@
     const label = document.createElement("label");
     label.textContent = "Website";
     const input = document.createElement("input");
-    input.name = "Website";
+    input.name = "website";
     input.type = "text";
     input.tabIndex = -1;
     input.autocomplete = "off";
@@ -174,12 +171,12 @@
       const formData = new FormData(form);
       const payload = {
         submission_id: createSubmissionId(),
-        name: readField(formData, "Name"),
-        email: readField(formData, "Email"),
-        company: readField(formData, "Company"),
-        product: readField(formData, "Product"),
-        message: readField(formData, "Message"),
-        website: readField(formData, "Website"),
+        name: readField(formData, "name"),
+        email: readField(formData, "email"),
+        company: readField(formData, "company"),
+        product: readField(formData, "product"),
+        message: readField(formData, "message"),
+        website: readField(formData, "website"),
         turnstile_token: turnstileToken,
         page_path: location.pathname,
         page_language: document.documentElement.lang || "und",

@@ -5,6 +5,7 @@ const INQUIRY_FROM = "CHIGOX Website <inquiries@send.chigox.com>";
 const INQUIRY_TO = "sales@chigox.com";
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
+const MAX_BODY_BYTES = 32_768;
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -26,8 +27,8 @@ const FIELD_LIMITS = {
   submissionId: 80,
 };
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+function json(data, status = 200, statusText) {
+  return new Response(JSON.stringify(data), { status, statusText, headers: JSON_HEADERS });
 }
 
 function cleanText(value, maxLength, { required = false, minLength = 0 } = {}) {
@@ -97,8 +98,7 @@ function requiredEnvironment(env) {
     env?.TURNSTILE_SITE_KEY &&
     env?.TURNSTILE_SECRET_KEY &&
     env?.TURNSTILE_ALLOWED_HOSTNAMES &&
-    env?.RATE_LIMIT_SECRET &&
-    env?.RESEND_API_KEY,
+    env?.RATE_LIMIT_SECRET,
   );
 }
 
@@ -107,6 +107,64 @@ class ValidationError extends Error {
     super(code);
     this.name = "ValidationError";
     this.code = code;
+  }
+}
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("payload_too_large");
+    this.name = "PayloadTooLargeError";
+  }
+}
+
+class InvalidJsonError extends Error {
+  constructor() {
+    super("invalid_json");
+    this.name = "InvalidJsonError";
+  }
+}
+
+async function readJsonBody(request) {
+  const declaredLength = Number(request.headers.get("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    throw new PayloadTooLargeError();
+  }
+  if (!request.body) throw new InvalidJsonError();
+
+  const reader = request.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_BODY_BYTES) {
+        try {
+          await reader.cancel();
+        } catch {
+          // The size limit has already been enforced.
+        }
+        throw new PayloadTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bodyBytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bodyBytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  try {
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bodyBytes));
+  } catch {
+    throw new InvalidJsonError();
   }
 }
 
@@ -419,13 +477,13 @@ export async function handleInquiryPost(context, dependencies = {}) {
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
     return json({ ok: false, error: "unsupported_content_type" }, 415);
   }
-  const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > 20_000) return json({ ok: false, error: "payload_too_large" }, 413);
-
   let body;
   try {
-    body = await request.json();
-  } catch {
+    body = await readJsonBody(request);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return json({ ok: false, error: "payload_too_large" }, 413, "Payload Too Large");
+    }
     return json({ ok: false, error: "invalid_json" }, 400);
   }
 
@@ -484,24 +542,26 @@ export async function handleInquiryPost(context, dependencies = {}) {
 
   let notificationSent = false;
   let notificationProviderId = null;
-  try {
-    const notification = await sendNotification(env, inquiry, fetchImpl);
-    notificationSent = true;
-    notificationProviderId = notification.providerId;
-  } catch {
-    console.error("Inquiry notification failed", { inquiryId: inquiry.inquiryId });
-  }
+  if (env.RESEND_API_KEY) {
+    try {
+      const notification = await sendNotification(env, inquiry, fetchImpl);
+      notificationSent = true;
+      notificationProviderId = notification.providerId;
+    } catch {
+      console.error("Inquiry notification failed", { inquiryId: inquiry.inquiryId });
+    }
 
-  try {
-    await updateNotification(
-      env,
-      inquiry.inquiryId,
-      notificationSent ? "sent" : "failed",
-      notificationProviderId,
-      now,
-    );
-  } catch {
-    console.error("Inquiry notification status update failed", { inquiryId: inquiry.inquiryId });
+    try {
+      await updateNotification(
+        env,
+        inquiry.inquiryId,
+        notificationSent ? "sent" : "failed",
+        notificationProviderId,
+        now,
+      );
+    } catch {
+      console.error("Inquiry notification status update failed", { inquiryId: inquiry.inquiryId });
+    }
   }
 
   return json({

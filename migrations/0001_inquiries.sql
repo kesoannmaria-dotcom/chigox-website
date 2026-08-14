@@ -1,5 +1,3 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS inquiries (
   inquiry_id TEXT PRIMARY KEY,
   submission_id TEXT NOT NULL UNIQUE,

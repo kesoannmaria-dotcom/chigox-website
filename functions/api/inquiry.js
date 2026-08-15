@@ -1,8 +1,6 @@
 const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const RESEND_EMAIL_URL = "https://api.resend.com/emails";
 const TURNSTILE_ACTION = "inquiry_form";
-const INQUIRY_FROM = "CHIGOX Website <inquiries@send.chigox.com>";
-const INQUIRY_TO = "sales@chigox.com";
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX = 5;
 const MAX_BODY_BYTES = 32_768;
@@ -202,7 +200,6 @@ function fieldRow(label, value, options = {}) {
 
 export function renderInquiryEmail(inquiry) {
   const productTitle = inquiry.product || "Website";
-  const sourceMedium = [inquiry.utmSource, inquiry.utmMedium].filter(Boolean).join(" / ") || "Not captured";
   const replyHref = `mailto:${escapeHtml(inquiry.email)}`;
 
   return `<!doctype html>
@@ -256,9 +253,12 @@ export function renderInquiryEmail(inquiry) {
             <tr><td colspan="2" style="padding:12px 16px;background:#f3f8fb;color:#123b63;font-size:14px;font-weight:800;border-bottom:1px solid #d9e5ed;">Inquiry and source</td></tr>
             ${fieldRow("Inquiry ID", inquiry.inquiryId)}
             ${fieldRow("Submitted", displaySubmittedAt(inquiry.createdAt))}
+            ${fieldRow("Page path", inquiry.pagePath, { fallback: "Not captured" })}
             ${fieldRow("Landing page", inquiry.landingPage, { fallback: "Not captured" })}
-            ${fieldRow("Source / Medium", sourceMedium)}
-            ${fieldRow("Campaign", inquiry.utmCampaign, { fallback: "Not captured" })}
+            ${fieldRow("Referrer", inquiry.referrer, { fallback: "Not captured" })}
+            ${fieldRow("UTM source", inquiry.utmSource, { fallback: "Not captured" })}
+            ${fieldRow("UTM medium", inquiry.utmMedium, { fallback: "Not captured" })}
+            ${fieldRow("UTM campaign", inquiry.utmCampaign, { fallback: "Not captured" })}
             ${fieldRow("Page language", inquiry.pageLanguage)}
           </table>
 
@@ -266,7 +266,7 @@ export function renderInquiryEmail(inquiry) {
             <td style="background:#0f6fb8;border-radius:6px;"><a href="${replyHref}" style="display:inline-block;padding:12px 18px;color:#fff;font-size:14px;font-weight:800;text-decoration:none;">Reply to customer</a></td>
           </tr></table>
 
-          <p style="margin:24px 0 0;padding-top:18px;border-top:1px solid #e7eef3;color:#7a8792;font-size:12px;line-height:1.6;">From ${escapeHtml(INQUIRY_FROM)} · To ${escapeHtml(INQUIRY_TO)} · Customer email is used only as Reply-To.</p>
+          <p style="margin:24px 0 0;padding-top:18px;border-top:1px solid #e7eef3;color:#7a8792;font-size:12px;line-height:1.6;">Customer email is used only as Reply-To.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -276,7 +276,6 @@ export function renderInquiryEmail(inquiry) {
 }
 
 export function renderInquiryText(inquiry) {
-  const sourceMedium = [inquiry.utmSource, inquiry.utmMedium].filter(Boolean).join(" / ") || "Not captured";
   return [
     "NEW CHIGOX WEBSITE INQUIRY",
     "",
@@ -287,9 +286,12 @@ export function renderInquiryText(inquiry) {
     `Company / Type: ${inquiry.company || "Not provided"}`,
     `Product: ${inquiry.product || "Not provided"}`,
     `Country: ${inquiry.visitorCountry || "Not captured"}`,
+    `Page path: ${inquiry.pagePath || "Not captured"}`,
     `Landing page: ${inquiry.landingPage || "Not captured"}`,
-    `Source / Medium: ${sourceMedium}`,
-    `Campaign: ${inquiry.utmCampaign || "Not captured"}`,
+    `Referrer: ${inquiry.referrer || "Not captured"}`,
+    `UTM source: ${inquiry.utmSource || "Not captured"}`,
+    `UTM medium: ${inquiry.utmMedium || "Not captured"}`,
+    `UTM campaign: ${inquiry.utmCampaign || "Not captured"}`,
     `Page language: ${inquiry.pageLanguage}`,
     "",
     "Message:",
@@ -438,9 +440,13 @@ async function updateNotification(env, inquiryId, status, providerId, now) {
 }
 
 async function sendNotification(env, inquiry, fetchImpl) {
+  const from = typeof env.INQUIRY_FROM_EMAIL === "string" ? env.INQUIRY_FROM_EMAIL.trim() : "";
+  const to = typeof env.INQUIRY_NOTIFICATION_TO === "string" ? env.INQUIRY_NOTIFICATION_TO.trim() : "";
+  if (!from || !to) throw new Error("notification_configuration_missing");
+
   const payload = {
-    from: INQUIRY_FROM,
-    to: [INQUIRY_TO],
+    from,
+    to: [to],
     reply_to: inquiry.email,
     subject: `New CHIGOX inquiry · ${inquiry.product || "Website"} · ${inquiry.inquiryId}`,
     html: renderInquiryEmail(inquiry),

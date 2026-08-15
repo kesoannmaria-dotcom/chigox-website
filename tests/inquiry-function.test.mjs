@@ -140,6 +140,8 @@ function makeEnv(db, overrides = {}) {
     TURNSTILE_ALLOWED_HOSTNAMES: HOST,
     RATE_LIMIT_SECRET: "private-rate-limit-secret",
     RESEND_API_KEY: "private-resend-test-key",
+    INQUIRY_FROM_EMAIL: "CHIGOX Website <inquiry@notify.chigox.com>",
+    INQUIRY_NOTIFICATION_TO: "preview-sales@example.com",
     INQUIRY_ENV: "preview",
     ...overrides,
   };
@@ -206,8 +208,8 @@ test("valid inquiry is verified, persisted, then emailed as an HTML table", asyn
 
   const resendCall = mocked.calls.find((call) => call.url.includes("api.resend.com"));
   const resendPayload = JSON.parse(resendCall.request.body);
-  assert.equal(resendPayload.from, "CHIGOX Website <inquiries@send.chigox.com>");
-  assert.deepEqual(resendPayload.to, ["sales@chigox.com"]);
+  assert.equal(resendPayload.from, "CHIGOX Website <inquiry@notify.chigox.com>");
+  assert.deepEqual(resendPayload.to, ["preview-sales@example.com"]);
   assert.equal(resendPayload.reply_to, "buyer@example.com");
   assert.match(resendPayload.html, /Customer information/);
   assert.match(resendPayload.html, /Sample &lt;Buyer&gt;/);
@@ -215,6 +217,11 @@ test("valid inquiry is verified, persisted, then emailed as an HTML table", asyn
   assert.match(resendPayload.html, /I’m considering an ultrasound system/);
   assert.doesNotMatch(resendPayload.html, /Iâ€™m/);
   assert.match(resendPayload.html, /\/products\/ultrasound\/cgu-lc\//);
+  assert.match(resendPayload.html, /Page path/);
+  assert.match(resendPayload.html, /Referrer/);
+  assert.match(resendPayload.html, /https:\/\/www\.google\.com\/search/);
+  assert.match(resendPayload.text, /Page path: \/products\/ultrasound\/cgu-lc\//);
+  assert.match(resendPayload.text, /Referrer: https:\/\/www\.google\.com\/search/);
   assert.doesNotMatch(resendPayload.html, /private@example\.com/);
   assert.equal(resendCall.request.headers["idempotency-key"], "chigox-INQ-20260805-12345678");
 
@@ -325,7 +332,11 @@ test("missing Resend configuration saves the inquiry with notification pending",
   const events = [];
   const db = new FakeD1({ events });
   const mocked = makeFetch({ events });
-  const env = makeEnv(db, { RESEND_API_KEY: undefined });
+  const env = makeEnv(db, {
+    RESEND_API_KEY: undefined,
+    INQUIRY_FROM_EMAIL: undefined,
+    INQUIRY_NOTIFICATION_TO: undefined,
+  });
   const response = await handleInquiryPost(
     { request: makeRequest(), env },
     { ...dependencies, fetchImpl: mocked.fetchImpl },
@@ -338,6 +349,33 @@ test("missing Resend configuration saves the inquiry with notification pending",
   assert.equal(db.notificationStatus, "pending");
   assert.deepEqual(events, ["rate-limit", "turnstile", "persist"]);
   assert.equal(mocked.calls.filter((call) => call.url.includes("api.resend.com")).length, 0);
+});
+
+test("Resend without a From or To preserves the inquiry and marks notification failed", async (t) => {
+  for (const missing of ["INQUIRY_FROM_EMAIL", "INQUIRY_NOTIFICATION_TO"]) {
+    await t.test(missing, async () => {
+      const events = [];
+      const db = new FakeD1({ events });
+      const mocked = makeFetch({ events });
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const response = await handleInquiryPost(
+          { request: makeRequest(), env: makeEnv(db, { [missing]: undefined }) },
+          { ...dependencies, fetchImpl: mocked.fetchImpl },
+        );
+        const result = await responseJson(response);
+        assert.equal(response.status, 201);
+        assert.equal(result.lead_saved, true);
+        assert.equal(result.notification_sent, false);
+        assert.equal(db.notificationStatus, "failed");
+        assert.deepEqual(events, ["rate-limit", "turnstile", "persist", "notification:failed"]);
+        assert.equal(mocked.calls.filter((call) => call.url.includes("api.resend.com")).length, 0);
+      } finally {
+        console.error = originalError;
+      }
+    });
+  }
 });
 
 test("Resend 500 does not erase an already saved lead", async () => {
@@ -495,7 +533,9 @@ test("email template escapes all customer-supplied HTML", () => {
     product: "<b>CGU-LC</b>",
     message: "<a href='bad'>click</a>",
     visitorCountry: "CO",
+    pagePath: "/products/cgu-lc/",
     landingPage: "/products/cgu-lc/",
+    referrer: "https://www.google.com/search",
     utmSource: "google",
     utmMedium: "organic",
     utmCampaign: "",
@@ -503,4 +543,6 @@ test("email template escapes all customer-supplied HTML", () => {
   });
   assert.doesNotMatch(html, /<script>|<img src=x|<b>CGU-LC<\/b>|<a href='bad'>/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+  assert.match(html, /Page path/);
+  assert.match(html, /Referrer/);
 });

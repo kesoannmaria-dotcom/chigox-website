@@ -124,7 +124,16 @@
     return status;
   };
 
-  const initializeForm = async (form, config, turnstile) => {
+  const resetTurnstile = (turnstile, widgetId) => {
+    if (!turnstile || widgetId === null) return;
+    try {
+      turnstile.reset(widgetId);
+    } catch {
+      // A reset failure must never affect the native-submit guard.
+    }
+  };
+
+  const initializeForm = (form) => {
     if (initializedForms.has(form)) return;
     initializedForms.add(form);
 
@@ -142,12 +151,8 @@
       form.append(honeypot, challenge, status);
     }
 
-    const widgetId = turnstile.render(challenge, {
-      sitekey: config.site_key,
-      action: config.action,
-      appearance: "interaction-only",
-      size: "flexible",
-    });
+    let turnstile = null;
+    let widgetId = null;
 
     let formStarted = false;
     form.addEventListener("input", () => {
@@ -161,36 +166,42 @@
       status.textContent = "";
       status.style.color = "#5d6d7c";
 
-      const turnstileToken = turnstile.getResponse(widgetId);
-      if (!turnstileToken) {
-        status.textContent = "Please complete the verification and submit again.";
-        status.style.color = "#a33b2f";
-        return;
-      }
-
-      const formData = new FormData(form);
-      const payload = {
-        submission_id: createSubmissionId(),
-        name: readField(formData, "name"),
-        email: readField(formData, "email"),
-        company: readField(formData, "company"),
-        product: readField(formData, "product"),
-        message: readField(formData, "message"),
-        website: readField(formData, "website"),
-        turnstile_token: turnstileToken,
-        page_path: location.pathname,
-        page_language: document.documentElement.lang || "und",
-        landing_page: attribution.landing_page,
-        referrer: attribution.referrer,
-        utm_source: attribution.utm_source,
-        utm_medium: attribution.utm_medium,
-        utm_campaign: attribution.utm_campaign,
-      };
-
-      if (submitButton) submitButton.disabled = true;
-      status.textContent = "Sending your inquiry…";
-
       try {
+        if (!turnstile || widgetId === null) {
+          status.textContent = "Inquiry submission is not ready. Please refresh the page and try again.";
+          status.style.color = "#a33b2f";
+          return;
+        }
+
+        const turnstileToken = turnstile.getResponse(widgetId);
+        if (!turnstileToken) {
+          status.textContent = "Please complete the verification and submit again.";
+          status.style.color = "#a33b2f";
+          return;
+        }
+
+        const formData = new FormData(form);
+        const payload = {
+          submission_id: createSubmissionId(),
+          name: readField(formData, "name"),
+          email: readField(formData, "email"),
+          company: readField(formData, "company"),
+          product: readField(formData, "product"),
+          message: readField(formData, "message"),
+          website: readField(formData, "website"),
+          turnstile_token: turnstileToken,
+          page_path: location.pathname,
+          page_language: document.documentElement.lang || "und",
+          landing_page: attribution.landing_page,
+          referrer: attribution.referrer,
+          utm_source: attribution.utm_source,
+          utm_medium: attribution.utm_medium,
+          utm_campaign: attribution.utm_campaign,
+        };
+
+        if (submitButton) submitButton.disabled = true;
+        status.textContent = "Sending your inquiry…";
+
         const response = await fetch(API_URL, {
           method: "POST",
           credentials: "same-origin",
@@ -202,38 +213,66 @@
         if (!response.ok || !result.lead_saved) throw new Error(result.error || "submission_failed");
 
         form.reset();
-        turnstile.reset(widgetId);
+        resetTurnstile(turnstile, widgetId);
         status.textContent = `Thank you. Your inquiry reference is ${result.lead_id}.`;
         status.style.color = "#087474";
 
         // No names, emails, companies, messages, or other personal fields are sent to GA4.
         if (result.analytics_event === "generate_lead") pushAnalytics("generate_lead");
       } catch {
-        turnstile.reset(widgetId);
+        resetTurnstile(turnstile, widgetId);
         status.textContent = "Your inquiry was not confirmed. Please try again or contact CHIGOX by email.";
         status.style.color = "#a33b2f";
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
     });
+
+    return {
+      unavailable(message) {
+        status.textContent = message;
+        status.style.color = "#a33b2f";
+      },
+      activate(config, turnstileClient) {
+        try {
+          const renderedWidgetId = turnstileClient.render(challenge, {
+            sitekey: config.site_key,
+            action: config.action,
+            appearance: "interaction-only",
+            size: "flexible",
+          });
+          turnstile = turnstileClient;
+          widgetId = renderedWidgetId;
+        } catch {
+          this.unavailable("Verification could not start. Please refresh the page and try again.");
+        }
+      },
+    };
   };
 
   const start = async () => {
     const forms = [...document.querySelectorAll("form.inquiry-form")];
     if (!forms.length) return;
 
+    // Bind the native-submit guard before any network request or Turnstile work.
+    // If setup fails, the listener remains active and preserves the visitor's fields.
+    const controllers = forms.map((form) => initializeForm(form));
+
     try {
       const [configResponse, turnstile] = await Promise.all([
         fetch(API_URL, { credentials: "same-origin", cache: "no-store" }),
         loadTurnstile(),
       ]);
-      if (!configResponse.ok) return;
+      if (!configResponse.ok) throw new Error("inquiry_configuration_failed");
       const config = await configResponse.json();
-      if (!config.enabled || !config.site_key || config.action !== "inquiry_form") return;
-      await Promise.all(forms.map((form) => initializeForm(form, config, turnstile)));
+      if (!config.enabled || !config.site_key || config.action !== "inquiry_form") {
+        throw new Error("inquiry_configuration_invalid");
+      }
+      controllers.forEach((controller) => controller.activate(config, turnstile));
     } catch {
-      // Never fall back to an external mail client or a non-HTTPS endpoint.
-      // The form action remains the same-origin API route.
+      controllers.forEach((controller) => {
+        controller.unavailable("Inquiry submission is temporarily unavailable. Please refresh the page and try again.");
+      });
     }
   };
 

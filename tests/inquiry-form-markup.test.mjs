@@ -63,6 +63,39 @@ test("website source contains no HTTP form action or hard-coded HTTP API URL", (
   assert.doesNotMatch(client, /Nombre|Correo electrónico|Unternehmen|이름|Imię|Ad/);
 });
 
+test("the client binds a native-submit guard before Turnstile or API setup", () => {
+  const client = fs.readFileSync(path.join(root, "assets/js/inquiry-form.js"), "utf8");
+  const submitListener = client.indexOf('form.addEventListener("submit", async (event) => {');
+  const preventDefault = client.indexOf("event.preventDefault();", submitListener);
+  const firstGuardBranch = client.indexOf("if (!turnstile || widgetId === null)", submitListener);
+  const bindControllers = client.indexOf("const controllers = forms.map((form) => initializeForm(form));");
+  const beginAsyncSetup = client.indexOf("const [configResponse, turnstile] = await Promise.all([");
+
+  assert.ok(submitListener >= 0, "every initialized inquiry form needs a submit listener");
+  assert.ok(preventDefault > submitListener, "the submit listener must prevent native submission");
+  assert.ok(
+    preventDefault < firstGuardBranch,
+    "preventDefault must run before Turnstile, validation, or other error-path work"
+  );
+  assert.ok(bindControllers >= 0 && bindControllers < beginAsyncSetup, "bind forms before API/Turnstile setup starts");
+});
+
+test("setup and submission failures keep the browser on-page instead of falling back to native submit", () => {
+  const client = fs.readFileSync(path.join(root, "assets/js/inquiry-form.js"), "utf8");
+
+  assert.match(
+    client,
+    /catch\s*\{\s*controllers\.forEach\(\(controller\) => \{\s*controller\.unavailable\(/s,
+    "GET /api/inquiry or Turnstile setup failures must become an on-page error"
+  );
+  assert.match(
+    client,
+    /catch\s*\{\s*resetTurnstile\(turnstile, widgetId\);\s*status\.textContent = "Your inquiry was not confirmed\./s,
+    "POST/fetch errors must become an on-page error"
+  );
+  assert.doesNotMatch(client, /\.submit\(|\.requestSubmit\(/, "client must never programmatically trigger native form submission");
+});
+
 test("translated labels remain visible while machine field names stay canonical", () => {
   const samples = [
     ["contact-us/index.html", /<label>Name<input name="name" required><\/label>/],

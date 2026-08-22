@@ -2,13 +2,6 @@
   const API_URL = "/api/inquiry";
   const STORAGE_KEY = "chigox_inquiry_attribution";
   const initializedForms = new WeakSet();
-  const previewDiagnostics = location.hostname.endsWith(".pages.dev");
-
-  const logTurnstile = (event, details = {}) => {
-    if (!previewDiagnostics) return;
-    // Preview-only diagnostics: never include a Turnstile token or form data.
-    console.info("[CHIGOX inquiry Turnstile]", event, details);
-  };
 
   const safeSessionGet = (key) => {
     try {
@@ -22,7 +15,7 @@
     try {
       sessionStorage.setItem(key, value);
     } catch {
-      // The form still works when storage is unavailable.
+      // Attribution remains optional when browser storage is unavailable.
     }
   };
 
@@ -82,29 +75,6 @@
     return `web_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
   };
 
-  const loadTurnstile = () => {
-    if (window.turnstile) return Promise.resolve(window.turnstile);
-    return new Promise((resolve, reject) => {
-      const existing = document.querySelector('script[data-chigox-turnstile="true"]');
-      if (existing) {
-        existing.addEventListener("load", () => resolve(window.turnstile), { once: true });
-        existing.addEventListener("error", reject, { once: true });
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      script.defer = true;
-      script.dataset.chigoxTurnstile = "true";
-      script.addEventListener("load", () => {
-        logTurnstile("script_loaded");
-        resolve(window.turnstile);
-      }, { once: true });
-      script.addEventListener("error", reject, { once: true });
-      document.head.append(script);
-    });
-  };
-
   const makeHoneypot = () => {
     const wrapper = document.createElement("div");
     wrapper.setAttribute("aria-hidden", "true");
@@ -136,59 +106,19 @@
     return status;
   };
 
-  const resetTurnstile = (turnstile, widgetId) => {
-    if (!turnstile || widgetId === null) return;
-    try {
-      turnstile.reset(widgetId);
-    } catch {
-      // A reset failure must never affect the native-submit guard.
-    }
-  };
-
   const initializeForm = (form) => {
     if (initializedForms.has(form)) return;
     initializedForms.add(form);
 
     const attribution = readAttribution();
-    const honeypot = makeHoneypot();
-    const challenge = document.createElement("div");
-    challenge.className = "inquiry-turnstile full";
-    const status = makeStatus();
     const submitButton = form.querySelector('button[type="submit"], input[type="submit"]');
+    const status = makeStatus();
     if (submitButton) {
-      form.insertBefore(honeypot, submitButton);
-      form.insertBefore(challenge, submitButton);
-      form.append(status);
+      form.insertBefore(makeHoneypot(), submitButton);
+      form.insertBefore(status, submitButton);
     } else {
-      form.append(honeypot, challenge, status);
+      form.append(makeHoneypot(), status);
     }
-
-    let turnstile = null;
-    let widgetId = null;
-    let turnstileToken = "";
-    let verificationState = "loading";
-
-    const currentTurnstileToken = () => {
-      if (turnstileToken) return turnstileToken;
-      if (!turnstile || widgetId === null) return "";
-      try {
-        const response = turnstile.getResponse(widgetId);
-        if (response) {
-          turnstileToken = response;
-          verificationState = "ready";
-          logTurnstile("token_ready", { source: "get_response" });
-        }
-      } catch {
-        // The callback/error handlers provide the visitor-facing state.
-      }
-      return turnstileToken;
-    };
-
-    const refreshTurnstile = () => {
-      turnstileToken = "";
-      verificationState = "loading";
-      resetTurnstile(turnstile, widgetId);
-    };
 
     let formStarted = false;
     form.addEventListener("input", () => {
@@ -197,48 +127,42 @@
       pushAnalytics("form_start");
     });
 
+    // The standard implicit Turnstile widget creates cf-turnstile-response itself.
+    // This handler never renders, executes, resets, or otherwise manages the widget.
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       status.textContent = "";
       status.style.color = "#5d6d7c";
 
+      const formData = new FormData(form);
+      const turnstileToken = readField(formData, "cf-turnstile-response");
+      if (!turnstileToken) {
+        status.textContent = "Please complete the verification before sending your inquiry.";
+        status.style.color = "#a33b2f";
+        return;
+      }
+
+      const payload = {
+        submission_id: createSubmissionId(),
+        name: readField(formData, "name"),
+        email: readField(formData, "email"),
+        company: readField(formData, "company"),
+        product: readField(formData, "product"),
+        message: readField(formData, "message"),
+        website: readField(formData, "website"),
+        turnstile_token: turnstileToken,
+        page_path: location.pathname,
+        page_language: document.documentElement.lang || "und",
+        landing_page: attribution.landing_page,
+        referrer: attribution.referrer,
+        utm_source: attribution.utm_source,
+        utm_medium: attribution.utm_medium,
+        utm_campaign: attribution.utm_campaign,
+        utm_content: attribution.utm_content,
+        utm_term: attribution.utm_term,
+      };
+
       try {
-        if (!turnstile || widgetId === null) {
-          status.textContent = "Inquiry submission is not ready. Please refresh the page and try again.";
-          status.style.color = "#a33b2f";
-          return;
-        }
-
-        const activeTurnstileToken = currentTurnstileToken();
-        if (!activeTurnstileToken) {
-          status.textContent = verificationState === "error"
-            ? "Verification could not be completed. Please refresh the page and try again."
-            : "Please complete the verification above before sending your inquiry.";
-          status.style.color = "#a33b2f";
-          return;
-        }
-
-        const formData = new FormData(form);
-        const payload = {
-          submission_id: createSubmissionId(),
-          name: readField(formData, "name"),
-          email: readField(formData, "email"),
-          company: readField(formData, "company"),
-          product: readField(formData, "product"),
-          message: readField(formData, "message"),
-          website: readField(formData, "website"),
-          turnstile_token: activeTurnstileToken,
-          page_path: location.pathname,
-          page_language: document.documentElement.lang || "und",
-          landing_page: attribution.landing_page,
-          referrer: attribution.referrer,
-          utm_source: attribution.utm_source,
-          utm_medium: attribution.utm_medium,
-          utm_campaign: attribution.utm_campaign,
-          utm_content: attribution.utm_content,
-          utm_term: attribution.utm_term,
-        };
-
         if (submitButton) submitButton.disabled = true;
         status.textContent = "Sending your inquiry…";
 
@@ -249,109 +173,26 @@
           body: JSON.stringify(payload),
         });
         const result = await response.json().catch(() => ({}));
-
         if (!response.ok || !result.lead_saved) throw new Error(result.error || "submission_failed");
 
         form.reset();
-        refreshTurnstile();
         status.textContent = `Thank you. Your inquiry reference is ${result.lead_id}.`;
         status.style.color = "#087474";
 
         // No names, emails, companies, messages, or other personal fields are sent to GA4.
         if (result.analytics_event === "generate_lead") pushAnalytics("generate_lead");
       } catch {
-        resetTurnstile(turnstile, widgetId);
         status.textContent = "Your inquiry was not confirmed. Please try again or contact CHIGOX by email.";
         status.style.color = "#a33b2f";
-        // A POST failure may leave a single-use token in an unknown state.
-        // Refresh only after an attempted API submission, never because a token is absent.
-        turnstileToken = "";
-        verificationState = "loading";
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
     });
-
-    return {
-      unavailable(message) {
-        status.textContent = message;
-        status.style.color = "#a33b2f";
-      },
-      activate(config, turnstileClient) {
-        try {
-          const renderedWidgetId = turnstileClient.render(challenge, {
-            sitekey: config.site_key,
-            action: config.action,
-            appearance: "always",
-            size: "flexible",
-            callback(token) {
-              turnstileToken = token;
-              verificationState = "ready";
-              logTurnstile("token_ready", { source: "callback" });
-              if (!status.textContent || status.textContent.startsWith("Please complete")) {
-                status.textContent = "Verification complete. You can send your inquiry.";
-                status.style.color = "#087474";
-              }
-            },
-            "error-callback"(errorCode) {
-              turnstileToken = "";
-              verificationState = "error";
-              logTurnstile("error_code", { errorCode: String(errorCode || "unknown") });
-              status.textContent = "Verification could not load. Please refresh the page and try again.";
-              status.style.color = "#a33b2f";
-            },
-            "expired-callback"() {
-              turnstileToken = "";
-              verificationState = "loading";
-              logTurnstile("token_expired");
-              status.textContent = "Verification expired. Please complete it again before sending your inquiry.";
-              status.style.color = "#a33b2f";
-              resetTurnstile(turnstile, widgetId);
-            },
-            "timeout-callback"() {
-              turnstileToken = "";
-              verificationState = "loading";
-              logTurnstile("verification_timeout");
-              status.textContent = "Verification timed out. Please complete it again before sending your inquiry.";
-              status.style.color = "#a33b2f";
-              resetTurnstile(turnstile, widgetId);
-            },
-          });
-          turnstile = turnstileClient;
-          widgetId = renderedWidgetId;
-          verificationState = "loading";
-          logTurnstile("widget_rendered", { appearance: "always" });
-        } catch {
-          this.unavailable("Verification could not start. Please refresh the page and try again.");
-        }
-      },
-    };
   };
 
-  const start = async () => {
-    const forms = [...document.querySelectorAll("form.inquiry-form")];
-    if (!forms.length) return;
-
-    // Bind the native-submit guard before any network request or Turnstile work.
-    // If setup fails, the listener remains active and preserves the visitor's fields.
-    const controllers = forms.map((form) => initializeForm(form));
-
-    try {
-      const [configResponse, turnstile] = await Promise.all([
-        fetch(API_URL, { credentials: "same-origin", cache: "no-store" }),
-        loadTurnstile(),
-      ]);
-      if (!configResponse.ok) throw new Error("inquiry_configuration_failed");
-      const config = await configResponse.json();
-      if (!config.enabled || !config.site_key || config.action !== "inquiry_form") {
-        throw new Error("inquiry_configuration_invalid");
-      }
-      controllers.forEach((controller) => controller.activate(config, turnstile));
-    } catch {
-      controllers.forEach((controller) => {
-        controller.unavailable("Inquiry submission is temporarily unavailable. Please refresh the page and try again.");
-      });
-    }
+  const start = () => {
+    const forms = [...document.querySelectorAll('form.inquiry-form[data-inquiry-turnstile="implicit"]')];
+    forms.forEach((form) => initializeForm(form));
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

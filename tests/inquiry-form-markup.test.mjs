@@ -77,34 +77,41 @@ test("the endoscopy page generator keeps the secure inquiry contract", () => {
   assert.doesNotMatch(generator, /action="mailto:/);
 });
 
-test("the client binds a native-submit guard before Turnstile or API setup", () => {
+test("the Contact page uses standard implicit Turnstile", () => {
+  const contactPage = fs.readFileSync(path.join(root, "contact-us/index.html"), "utf8");
+  const client = fs.readFileSync(path.join(root, "assets/js/inquiry-form.js"), "utf8");
+
+  assert.match(contactPage, /<script\s+src="https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js"\s+defer><\/script>/i);
+  assert.match(contactPage, /<div class="cf-turnstile full" data-sitekey="0x4AAAAAAEQpv-eVAYAfEalX" data-action="inquiry_form"><\/div>/);
+  assert.doesNotMatch(contactPage, /render=explicit/i);
+  assert.match(client, /readField\(formData, "cf-turnstile-response"\)/);
+  assert.doesNotMatch(client, /render=explicit|\.render\(|widgetId|getResponse\(|resetTurnstile|turnstile\.execute/i);
+});
+
+test("the client binds a native-submit guard before reading the implicit Turnstile response", () => {
   const client = fs.readFileSync(path.join(root, "assets/js/inquiry-form.js"), "utf8");
   const submitListener = client.indexOf('form.addEventListener("submit", async (event) => {');
   const preventDefault = client.indexOf("event.preventDefault();", submitListener);
-  const firstGuardBranch = client.indexOf("if (!turnstile || widgetId === null)", submitListener);
-  const bindControllers = client.indexOf("const controllers = forms.map((form) => initializeForm(form));");
-  const beginAsyncSetup = client.indexOf("const [configResponse, turnstile] = await Promise.all([");
+  const responseRead = client.indexOf('const turnstileToken = readField(formData, "cf-turnstile-response");', submitListener);
+  const postRequest = client.indexOf("const response = await fetch(API_URL", submitListener);
 
   assert.ok(submitListener >= 0, "every initialized inquiry form needs a submit listener");
   assert.ok(preventDefault > submitListener, "the submit listener must prevent native submission");
-  assert.ok(
-    preventDefault < firstGuardBranch,
-    "preventDefault must run before Turnstile, validation, or other error-path work"
-  );
-  assert.ok(bindControllers >= 0 && bindControllers < beginAsyncSetup, "bind forms before API/Turnstile setup starts");
+  assert.ok(preventDefault < responseRead, "preventDefault must run before reading the Turnstile response");
+  assert.ok(responseRead < postRequest, "an empty Turnstile response must block the API request");
 });
 
-test("setup and submission failures keep the browser on-page instead of falling back to native submit", () => {
+test("implicit Turnstile and submission failures keep the browser on-page", () => {
   const client = fs.readFileSync(path.join(root, "assets/js/inquiry-form.js"), "utf8");
 
   assert.match(
     client,
-    /catch\s*\{\s*controllers\.forEach\(\(controller\) => \{\s*controller\.unavailable\(/s,
-    "GET /api/inquiry or Turnstile setup failures must become an on-page error"
+    /if \(!turnstileToken\) \{\s*status\.textContent = "Please complete the verification before sending your inquiry\."/s,
+    "an empty standard Turnstile response must become an on-page error"
   );
   assert.match(
     client,
-    /catch\s*\{\s*resetTurnstile\(turnstile, widgetId\);\s*status\.textContent = "Your inquiry was not confirmed\./s,
+    /catch\s*\{\s*status\.textContent = "Your inquiry was not confirmed\./s,
     "POST/fetch errors must become an on-page error"
   );
   assert.doesNotMatch(client, /\.submit\(|\.requestSubmit\(/, "client must never programmatically trigger native form submission");

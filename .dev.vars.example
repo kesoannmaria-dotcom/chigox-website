@@ -1,0 +1,9 @@
+# Copy this file to .dev.vars for local Preview only. Never commit real values.
+TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+TURNSTILE_ALLOWED_HOSTNAMES=localhost,127.0.0.1
+RATE_LIMIT_SECRET=
+RESEND_API_KEY=
+INQUIRY_FROM_EMAIL=
+INQUIRY_NOTIFICATION_TO=
+INQUIRY_ENV=preview

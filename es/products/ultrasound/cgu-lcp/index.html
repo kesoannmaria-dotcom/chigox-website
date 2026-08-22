@@ -177,12 +177,12 @@
     </div>
   </article></div></section>
   <section><div class="section-heading"><span>Ecógrafos relacionados</span><h2>Explore otras opciones de ecógrafo de mano CHIGOX</h2><p>Consulte la categoría de <a href="/es/products/ultrasound/handheld-ultrasound/">ecógrafos portátiles de mano</a> o revise los modelos <a href="/es/products/ultrasound/handheld-ultrasound/convex-scanner/cgu-c/">CGU-C convexo</a>, <a href="/es/products/ultrasound/handheld-ultrasound/linear-scanner/cgu-l/">CGU-L lineal</a> y <a href="/es/products/ultrasound/handheld-ultrasound/phased-array-scanner/cgu-4p/">CGU-4P sectorial</a>.</p></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotización</span><h2>Inquiry Form</h2><p>Comparta su mercado, aplicación y configuración objetivo. El equipo de CHIGOX le responderá por correo electrónico.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nombre<input name="Nombre" required></label>
-    <label>Correo electrónico<input name="Correo electrónico" type="email" required></label>
-    <label>Empresa<input name="Empresa"></label>
-    <label>Producto<input name="Producto" value="CGU-LCP ecógrafo inalámbrico portátil 3 en 1"></label>
-    <label class="full">Mensaje<textarea name="Mensaje" rows="5" placeholder="Indíquenos su aplicación, cantidad y mercado objetivo."></textarea></label>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotización</span><h2>Inquiry Form</h2><p>Comparta su mercado, aplicación y configuración objetivo. El equipo de CHIGOX le responderá por correo electrónico.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <label>Nombre<input name="name" required></label>
+    <label>Correo electrónico<input name="email" type="email" required></label>
+    <label>Empresa<input name="company"></label>
+    <label>Producto<input name="product" value="CGU-LCP ecógrafo inalámbrico portátil 3 en 1"></label>
+    <label class="full">Mensaje<textarea name="message" rows="5" placeholder="Indíquenos su aplicación, cantidad y mercado objetivo."></textarea></label>
     <button class="btn primary" type="submit">Enviar consulta</button>
   </form></section></main>
   <aside class="floating-contact" aria-label="Contacto rápido">
@@ -254,5 +254,6 @@
   });
 })();
 </script>
+<script src="/assets/js/inquiry-form.js" defer></script>
 </body>
 </html>

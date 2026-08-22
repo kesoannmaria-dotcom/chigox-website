@@ -102,7 +102,6 @@
       }, { once: true });
       script.addEventListener("error", reject, { once: true });
       document.head.append(script);
-      logTurnstile("script_loaded");
     });
   };
 

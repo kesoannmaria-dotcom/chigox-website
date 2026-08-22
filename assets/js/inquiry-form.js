@@ -2,6 +2,13 @@
   const API_URL = "/api/inquiry";
   const STORAGE_KEY = "chigox_inquiry_attribution";
   const initializedForms = new WeakSet();
+  const previewDiagnostics = location.hostname.endsWith(".pages.dev");
+
+  const logTurnstile = (event, details = {}) => {
+    if (!previewDiagnostics) return;
+    // Preview-only diagnostics: never include a Turnstile token or form data.
+    console.info("[CHIGOX inquiry Turnstile]", event, details);
+  };
 
   const safeSessionGet = (key) => {
     try {
@@ -89,7 +96,10 @@
       script.async = true;
       script.defer = true;
       script.dataset.chigoxTurnstile = "true";
-      script.addEventListener("load", () => resolve(window.turnstile), { once: true });
+      script.addEventListener("load", () => {
+        logTurnstile("script_loaded");
+        resolve(window.turnstile);
+      }, { once: true });
       script.addEventListener("error", reject, { once: true });
       document.head.append(script);
     });
@@ -155,6 +165,30 @@
 
     let turnstile = null;
     let widgetId = null;
+    let turnstileToken = "";
+    let verificationState = "loading";
+
+    const currentTurnstileToken = () => {
+      if (turnstileToken) return turnstileToken;
+      if (!turnstile || widgetId === null) return "";
+      try {
+        const response = turnstile.getResponse(widgetId);
+        if (response) {
+          turnstileToken = response;
+          verificationState = "ready";
+          logTurnstile("token_ready", { source: "get_response" });
+        }
+      } catch {
+        // The callback/error handlers provide the visitor-facing state.
+      }
+      return turnstileToken;
+    };
+
+    const refreshTurnstile = () => {
+      turnstileToken = "";
+      verificationState = "loading";
+      resetTurnstile(turnstile, widgetId);
+    };
 
     let formStarted = false;
     form.addEventListener("input", () => {
@@ -175,9 +209,11 @@
           return;
         }
 
-        const turnstileToken = turnstile.getResponse(widgetId);
-        if (!turnstileToken) {
-          status.textContent = "Please complete the verification and submit again.";
+        const activeTurnstileToken = currentTurnstileToken();
+        if (!activeTurnstileToken) {
+          status.textContent = verificationState === "error"
+            ? "Verification could not be completed. Please refresh the page and try again."
+            : "Please complete the verification above before sending your inquiry.";
           status.style.color = "#a33b2f";
           return;
         }
@@ -191,7 +227,7 @@
           product: readField(formData, "product"),
           message: readField(formData, "message"),
           website: readField(formData, "website"),
-          turnstile_token: turnstileToken,
+          turnstile_token: activeTurnstileToken,
           page_path: location.pathname,
           page_language: document.documentElement.lang || "und",
           landing_page: attribution.landing_page,
@@ -217,7 +253,7 @@
         if (!response.ok || !result.lead_saved) throw new Error(result.error || "submission_failed");
 
         form.reset();
-        resetTurnstile(turnstile, widgetId);
+        refreshTurnstile();
         status.textContent = `Thank you. Your inquiry reference is ${result.lead_id}.`;
         status.style.color = "#087474";
 
@@ -227,6 +263,10 @@
         resetTurnstile(turnstile, widgetId);
         status.textContent = "Your inquiry was not confirmed. Please try again or contact CHIGOX by email.";
         status.style.color = "#a33b2f";
+        // A POST failure may leave a single-use token in an unknown state.
+        // Refresh only after an attempted API submission, never because a token is absent.
+        turnstileToken = "";
+        verificationState = "loading";
       } finally {
         if (submitButton) submitButton.disabled = false;
       }
@@ -242,11 +282,45 @@
           const renderedWidgetId = turnstileClient.render(challenge, {
             sitekey: config.site_key,
             action: config.action,
-            appearance: "interaction-only",
+            appearance: "always",
             size: "flexible",
+            callback(token) {
+              turnstileToken = token;
+              verificationState = "ready";
+              logTurnstile("token_ready", { source: "callback" });
+              if (!status.textContent || status.textContent.startsWith("Please complete")) {
+                status.textContent = "Verification complete. You can send your inquiry.";
+                status.style.color = "#087474";
+              }
+            },
+            "error-callback"(errorCode) {
+              turnstileToken = "";
+              verificationState = "error";
+              logTurnstile("error_code", { errorCode: String(errorCode || "unknown") });
+              status.textContent = "Verification could not load. Please refresh the page and try again.";
+              status.style.color = "#a33b2f";
+            },
+            "expired-callback"() {
+              turnstileToken = "";
+              verificationState = "loading";
+              logTurnstile("token_expired");
+              status.textContent = "Verification expired. Please complete it again before sending your inquiry.";
+              status.style.color = "#a33b2f";
+              resetTurnstile(turnstile, widgetId);
+            },
+            "timeout-callback"() {
+              turnstileToken = "";
+              verificationState = "loading";
+              logTurnstile("verification_timeout");
+              status.textContent = "Verification timed out. Please complete it again before sending your inquiry.";
+              status.style.color = "#a33b2f";
+              resetTurnstile(turnstile, widgetId);
+            },
           });
           turnstile = turnstileClient;
           widgetId = renderedWidgetId;
+          verificationState = "loading";
+          logTurnstile("widget_rendered", { appearance: "always" });
         } catch {
           this.unavailable("Verification could not start. Please refresh the page and try again.");
         }

@@ -115,12 +115,13 @@
     </nav>
   </header>
   <main><section class="page-hero"><p class="eyebrow">Contact Us</p><h1>Contact CHIGOX</h1><p>Send your inquiry for product configuration, quotation, application guidance, or distributor cooperation.</p></section>
-  <section class="contact-layout"><div class="contact-card"><h2>Sales Contact</h2><p>Email: <a href="mailto:info@chigox.com">info@chigox.com</a></p><p>WhatsApp: <a href="https://wa.me/message/IQLUGPTJSLQII1">+86 13979951941</a></p><p>Primary markets: South America, Europe, Africa, Middle East.</p></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Name<input name="Name" required></label>
-    <label>Email<input name="Email" type="email" required></label>
-    <label>Company<input name="Company"></label>
-    <label>Product<input name="Product" value=""></label>
-    <label class="full">Message<textarea name="Message" rows="5" placeholder="Tell us your application, quantity, and target market."></textarea></label>
+  <section class="contact-layout"><div class="contact-card"><h2>Sales Contact</h2><p>Email: <a href="mailto:info@chigox.com">info@chigox.com</a></p><p>WhatsApp: <a href="https://wa.me/message/IQLUGPTJSLQII1">+86 13979951941</a></p><p>Primary markets: South America, Europe, Africa, Middle East.</p></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8" data-contact-inquiry>
+    <label>Name<input name="name" required></label>
+    <label>Email<input name="email" type="email" required></label>
+    <label>Company<input name="company"></label>
+    <label>Product<input name="product" value=""></label>
+    <label class="full">Message<textarea name="message" rows="5" placeholder="Tell us your application, quantity, and target market." required></textarea></label>
+    <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden"><label>Website<input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
     <button class="btn primary" type="submit">Send Inquiry</button>
   </form></section></main>
   <aside class="floating-contact" aria-label="Quick contact">
@@ -188,6 +189,47 @@
         if (!menu.matches(":hover")) menu.open = false;
       }, 260);
     });
+  });
+})();
+</script>
+<script>
+(() => {
+  const form = document.querySelector("form[data-contact-inquiry]");
+  if (!form) return;
+  const submitButton = form.querySelector('button[type="submit"]');
+  const status = document.createElement("p");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.className = "full";
+  status.style.margin = "0";
+  form.append(status);
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    status.textContent = "Sending your inquiry…";
+    status.style.color = "#5d6d7c";
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      const response = await fetch("/api/inquiry", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) throw new Error("inquiry_failed");
+      form.reset();
+      status.textContent = "Thank you. Your inquiry has been sent to CHIGOX.";
+      status.style.color = "#087474";
+    } catch {
+      status.textContent = "We couldn't send your inquiry. Please email us at info@chigox.com.";
+      status.style.color = "#a33b2f";
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
   });
 })();
 </script>

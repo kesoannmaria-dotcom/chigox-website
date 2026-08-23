@@ -176,6 +176,61 @@ function buildEmail(inquiry) {
   return { subject, html, text };
 }
 
+const createInquiryId = () => {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `inquiry_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
+async function saveInquiry(env, inquiry) {
+  if (!env.DB) {
+    console.warn("D1 binding DB is not configured; inquiry email will still be sent.");
+    return { saved: false, id: "" };
+  }
+
+  const id = createInquiryId();
+  const attribution = inquiry.attribution || {};
+
+  await env.DB.prepare(
+    `INSERT INTO contact_inquiries (
+      id,
+      name,
+      email,
+      country,
+      company,
+      product,
+      message,
+      source,
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      utm_term,
+      utm_content,
+      landing_page,
+      submitted_page
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  )
+    .bind(
+      id,
+      inquiry.name,
+      inquiry.email,
+      inquiry.country || "",
+      inquiry.company || "",
+      inquiry.product || "",
+      inquiry.message,
+      attribution.source || "Direct",
+      attribution.utmSource || "",
+      attribution.utmMedium || "",
+      attribution.utmCampaign || "",
+      attribution.utmTerm || "",
+      attribution.utmContent || "",
+      attribution.landingPage || "",
+      attribution.submittedPage || ""
+    )
+    .run();
+
+  return { saved: true, id };
+}
+
 async function sendInquiryEmail(env, inquiry) {
   const email = buildEmail(inquiry);
   const response = await fetch(RESEND_ENDPOINT, {
@@ -213,8 +268,20 @@ export async function onRequestPost({ request, env }) {
     const inputError = validateInquiry(inquiry);
     if (inputError) return jsonResponse({ ok: false, error: inputError }, 400);
 
+    let storage = { saved: false, id: "" };
+    try {
+      storage = await saveInquiry(env, inquiry);
+    } catch (error) {
+      console.error("Inquiry D1 save failed", error);
+    }
+
     await sendInquiryEmail(env, inquiry);
-    return jsonResponse({ ok: true, message: "Inquiry sent.", attribution: inquiry.attribution });
+    return jsonResponse({
+      ok: true,
+      message: "Inquiry sent.",
+      attribution: inquiry.attribution,
+      storage
+    });
   } catch (error) {
     console.error("Inquiry submission failed", error);
     return jsonResponse({ ok: false, error: "Inquiry could not be sent." }, 500);

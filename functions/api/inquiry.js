@@ -119,55 +119,41 @@ function validateInquiry(inquiry) {
   return "";
 }
 
+const landingPagePath = (value) => cleanText(value).split(/[?#]/, 1)[0];
+
 function buildEmail(inquiry) {
-  const submittedAt = new Date().toISOString();
   const subjectProduct = inquiry.product || "General inquiry";
   const subject = `CHIGOX website inquiry - ${subjectProduct}`;
   const attribution = inquiry.attribution || {};
+  const landingPage = landingPagePath(attribution.landingPage);
   const html = `
     <h2>New CHIGOX Website Inquiry</h2>
     <table cellpadding="8" cellspacing="0" border="0">
       <tr><th align="left">Name</th><td>${escapeHtml(inquiry.name)}</td></tr>
       <tr><th align="left">Email</th><td>${escapeHtml(inquiry.email)}</td></tr>
-      <tr><th align="left">Company</th><td>${escapeHtml(inquiry.company || "—")}</td></tr>
+      <tr><th align="left">Country</th><td>${escapeHtml(inquiry.country || "—")}</td></tr>
       <tr><th align="left">Product</th><td>${escapeHtml(inquiry.product || "—")}</td></tr>
-      <tr><th align="left">Submitted at</th><td>${escapeHtml(submittedAt)}</td></tr>
+      <tr><th align="left">Message</th><td>${escapeHtml(inquiry.message)}</td></tr>
     </table>
     <h3>Attribution</h3>
     <table cellpadding="8" cellspacing="0" border="0">
       <tr><th align="left">Source</th><td>${escapeHtml(attribution.source || "Direct")}</td></tr>
-      <tr><th align="left">UTM source</th><td>${escapeHtml(attribution.utmSource || "—")}</td></tr>
-      <tr><th align="left">UTM medium</th><td>${escapeHtml(attribution.utmMedium || "—")}</td></tr>
-      <tr><th align="left">UTM campaign</th><td>${escapeHtml(attribution.utmCampaign || "—")}</td></tr>
-      <tr><th align="left">UTM term</th><td>${escapeHtml(attribution.utmTerm || "—")}</td></tr>
-      <tr><th align="left">UTM content</th><td>${escapeHtml(attribution.utmContent || "—")}</td></tr>
-      <tr><th align="left">Referrer</th><td>${escapeHtml(attribution.referrer || "—")}</td></tr>
-      <tr><th align="left">Landing page</th><td>${escapeHtml(attribution.landingPage || "—")}</td></tr>
-      <tr><th align="left">Submitted page</th><td>${escapeHtml(attribution.submittedPage || "—")}</td></tr>
+      <tr><th align="left">Campaign</th><td>${escapeHtml(attribution.utmCampaign || "—")}</td></tr>
+      <tr><th align="left">Landing page</th><td>${escapeHtml(landingPage || "—")}</td></tr>
     </table>
-    <h3>Message</h3>
-    <p>${escapeHtml(inquiry.message)}</p>
   `;
   const text = [
     "New CHIGOX Website Inquiry",
     `Name: ${inquiry.name}`,
     `Email: ${inquiry.email}`,
-    `Company: ${inquiry.company || "—"}`,
+    `Country: ${inquiry.country || "—"}`,
     `Product: ${inquiry.product || "—"}`,
-    `Submitted at: ${submittedAt}`,
+    `Message: ${inquiry.message}`,
     "",
     "Attribution",
     `Source: ${attribution.source || "Direct"}`,
-    `UTM source: ${attribution.utmSource || "—"}`,
-    `UTM medium: ${attribution.utmMedium || "—"}`,
-    `UTM campaign: ${attribution.utmCampaign || "—"}`,
-    `UTM term: ${attribution.utmTerm || "—"}`,
-    `UTM content: ${attribution.utmContent || "—"}`,
-    `Referrer: ${attribution.referrer || "—"}`,
-    `Landing page: ${attribution.landingPage || "—"}`,
-    `Submitted page: ${attribution.submittedPage || "—"}`,
-    "",
-    inquiry.message
+    `Campaign: ${attribution.utmCampaign || "—"}`,
+    `Landing page: ${landingPage || "—"}`,
   ].join("\n");
 
   return { subject, html, text };
@@ -206,6 +192,7 @@ export async function onRequestPost({ request, env }) {
 
   try {
     const inquiry = await parseInquiry(request);
+    inquiry.country = cleanText(request.cf?.country, 120);
     const inputError = validateInquiry(inquiry);
     if (inputError) return jsonResponse({ ok: false, error: inputError }, 400);
 

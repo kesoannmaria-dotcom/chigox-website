@@ -87,6 +87,7 @@ async function parseInquiry(request) {
     return {
       name: cleanText(body.name || body.Name, 160),
       email: cleanText(body.email || body.Email, 254),
+      country: cleanText(body.country || body.Country, 120),
       company: cleanText(body.company || body.Company, 180),
       product: cleanText(body.product || body.Product, 180),
       message: cleanText(body.message || body.Message, 4000),
@@ -98,6 +99,7 @@ async function parseInquiry(request) {
   return {
     name: getField(form, "name", "Name"),
     email: getField(form, "email", "Email"),
+    country: getField(form, "country", "Country"),
     company: getField(form, "company", "Company"),
     product: getField(form, "product", "Product"),
     message: getField(form, "message", "Message"),
@@ -125,35 +127,50 @@ function buildEmail(inquiry) {
   const subjectProduct = inquiry.product || "General inquiry";
   const subject = `CHIGOX website inquiry - ${subjectProduct}`;
   const attribution = inquiry.attribution || {};
-  const landingPage = landingPagePath(attribution.landingPage);
+  const landingPage = landingPagePath(attribution.landingPage) || "—";
   const html = `
     <h2>New CHIGOX Website Inquiry</h2>
-    <table cellpadding="8" cellspacing="0" border="0">
-      <tr><th align="left">Name</th><td>${escapeHtml(inquiry.name)}</td></tr>
-      <tr><th align="left">Email</th><td>${escapeHtml(inquiry.email)}</td></tr>
-      <tr><th align="left">Country</th><td>${escapeHtml(inquiry.country || "—")}</td></tr>
-      <tr><th align="left">Product</th><td>${escapeHtml(inquiry.product || "—")}</td></tr>
-      <tr><th align="left">Message</th><td>${escapeHtml(inquiry.message)}</td></tr>
-    </table>
-    <h3>Attribution</h3>
-    <table cellpadding="8" cellspacing="0" border="0">
-      <tr><th align="left">Source</th><td>${escapeHtml(attribution.source || "Direct")}</td></tr>
-      <tr><th align="left">Campaign</th><td>${escapeHtml(attribution.utmCampaign || "—")}</td></tr>
-      <tr><th align="left">Landing page</th><td>${escapeHtml(landingPage || "—")}</td></tr>
-    </table>
+    <p><strong>Name:</strong><br>${escapeHtml(inquiry.name)}</p>
+    <p><strong>Email:</strong><br>${escapeHtml(inquiry.email)}</p>
+    <p><strong>Country:</strong><br>${escapeHtml(inquiry.country || "—")}</p>
+    <p><strong>Product:</strong><br>${escapeHtml(inquiry.product || "—")}</p>
+    <p><strong>Message:</strong><br>${escapeHtml(inquiry.message)}</p>
+    <hr>
+    <h3>Marketing Source</h3>
+    <p><strong>Source:</strong><br>${escapeHtml(attribution.source || "Direct")}</p>
+    <p><strong>Campaign:</strong><br>${escapeHtml(attribution.utmCampaign || "—")}</p>
+    <p><strong>Landing page:</strong><br>${escapeHtml(landingPage)}</p>
   `;
   const text = [
     "New CHIGOX Website Inquiry",
-    `Name: ${inquiry.name}`,
-    `Email: ${inquiry.email}`,
-    `Country: ${inquiry.country || "—"}`,
-    `Product: ${inquiry.product || "—"}`,
-    `Message: ${inquiry.message}`,
     "",
-    "Attribution",
-    `Source: ${attribution.source || "Direct"}`,
-    `Campaign: ${attribution.utmCampaign || "—"}`,
-    `Landing page: ${landingPage || "—"}`,
+    "Name:",
+    inquiry.name,
+    "",
+    "Email:",
+    inquiry.email,
+    "",
+    "Country:",
+    inquiry.country || "—",
+    "",
+    "Product:",
+    inquiry.product || "—",
+    "",
+    "Message:",
+    inquiry.message,
+    "",
+    "",
+    "--- Marketing Source ---",
+    "",
+    "Source:",
+    attribution.source || "Direct",
+    "",
+    "Campaign:",
+    attribution.utmCampaign || "—",
+    "",
+    "Landing page:",
+    landingPage,
+    "",
   ].join("\n");
 
   return { subject, html, text };
@@ -192,7 +209,7 @@ export async function onRequestPost({ request, env }) {
 
   try {
     const inquiry = await parseInquiry(request);
-    inquiry.country = cleanText(request.cf?.country, 120);
+    inquiry.country = inquiry.country || cleanText(request.cf?.country, 120);
     const inputError = validateInquiry(inquiry);
     if (inputError) return jsonResponse({ ok: false, error: inputError }, 400);
 

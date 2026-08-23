@@ -121,6 +121,15 @@
     <label>Company<input name="Company"></label>
     <label>Product<input name="Product" value=""></label>
     <label class="full">Message<textarea name="Message" rows="5" placeholder="Tell us your application, quantity, and target market."></textarea></label>
+    <input type="hidden" name="source" value="Direct">
+    <input type="hidden" name="referrer" value="">
+    <input type="hidden" name="utm_source" value="">
+    <input type="hidden" name="utm_medium" value="">
+    <input type="hidden" name="utm_campaign" value="">
+    <input type="hidden" name="utm_term" value="">
+    <input type="hidden" name="utm_content" value="">
+    <input type="hidden" name="landing_page" value="">
+    <input type="hidden" name="submitted_page" value="">
     <button class="btn primary" type="submit">Send Inquiry</button>
   </form></section></main>
   <aside class="floating-contact" aria-label="Quick contact">
@@ -158,6 +167,47 @@
   </footer>
   <script>
 (() => {
+  const classifyInquirySource = ({ utmSource, referrer }) => {
+    const normalize = (value) => String(value || "").toLowerCase();
+    const bucket = (value) => {
+      const text = normalize(value);
+      if (!text) return "";
+      if (text.includes("google")) return "Google";
+      if (text.includes("facebook") || text.includes("fb.com") || text.includes("instagram") || text.includes("meta")) return "Facebook";
+      if (text.includes("direct")) return "Direct";
+      return "";
+    };
+    const utmBucket = bucket(utmSource);
+    if (utmSource) return utmBucket || "Referral";
+    if (!referrer) return "Direct";
+    let referrerHost = "";
+    try {
+      referrerHost = new URL(referrer).hostname;
+    } catch {
+      referrerHost = referrer;
+    }
+    if (!referrerHost || referrerHost.endsWith("chigox.com")) return "Direct";
+    return bucket(referrerHost) || "Referral";
+  };
+  const params = new URLSearchParams(window.location.search);
+  const attribution = {
+    utm_source: params.get("utm_source") || "",
+    utm_medium: params.get("utm_medium") || "",
+    utm_campaign: params.get("utm_campaign") || "",
+    utm_term: params.get("utm_term") || "",
+    utm_content: params.get("utm_content") || "",
+    referrer: document.referrer || "",
+    landing_page: `${window.location.pathname}${window.location.search}`,
+    submitted_page: window.location.href
+  };
+  attribution.source = classifyInquirySource({ utmSource: attribution.utm_source, referrer: attribution.referrer });
+  document.querySelectorAll('form[action="/api/inquiry"]').forEach((form) => {
+    Object.entries(attribution).forEach(([name, value]) => {
+      const field = form.elements[name];
+      if (field) field.value = value;
+    });
+  });
+
   const carousel = document.querySelector(".hero-carousel");
   if (carousel) {
     const slides = [...carousel.querySelectorAll(".hero-slides img")];

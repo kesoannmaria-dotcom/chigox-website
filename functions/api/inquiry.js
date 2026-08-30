@@ -1,4 +1,8 @@
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
+const TURNSTILE_SITEVERIFY_ENDPOINT = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const RATE_LIMIT_WINDOW_SECONDS = 10 * 60;
+const RATE_LIMIT_MAX_REQUESTS = 5;
+const GENERIC_VERIFICATION_ERROR = "Inquiry could not be verified. Please try again.";
 
 const jsonResponse = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -30,6 +34,32 @@ const getField = (form, ...names) => {
   return "";
 };
 
+const readEnv = (env, ...names) => {
+  for (const name of names) {
+    const value = env?.[name];
+    if (value) return String(value);
+  }
+  return "";
+};
+
+const getTurnstileSecret = (env) =>
+  readEnv(
+    env,
+    "TURNSTILE_SECRET_KEY",
+    "TURNSTILE_SECRET",
+    "CF_TURNSTILE_SECRET",
+    "CLOUDFLARE_TURNSTILE_SECRET_KEY"
+  );
+
+const getTurnstileSiteKey = (env) =>
+  readEnv(
+    env,
+    "TURNSTILE_SITE_KEY",
+    "TURNSTILE_SITEKEY",
+    "CF_TURNSTILE_SITE_KEY",
+    "CLOUDFLARE_TURNSTILE_SITE_KEY"
+  );
+
 async function parseInquiry(request) {
   const contentType = request.headers.get("content-type") || "";
 
@@ -40,7 +70,11 @@ async function parseInquiry(request) {
       email: cleanText(body.email || body.Email, 254),
       company: cleanText(body.company || body.Company, 180),
       product: cleanText(body.product || body.Product, 180),
-      message: cleanText(body.message || body.Message, 4000)
+      message: cleanText(body.message || body.Message, 4000),
+      turnstileToken: cleanText(
+        body["cf-turnstile-response"] || body.turnstileToken || body.turnstile_token,
+        4096
+      )
     };
   }
 
@@ -50,7 +84,8 @@ async function parseInquiry(request) {
     email: getField(form, "email", "Email"),
     company: getField(form, "company", "Company"),
     product: getField(form, "product", "Product"),
-    message: getField(form, "message", "Message")
+    message: getField(form, "message", "Message"),
+    turnstileToken: getField(form, "cf-turnstile-response", "turnstileToken", "turnstile_token")
   };
 }
 
@@ -75,6 +110,136 @@ function isEmergencyBlockedInquiry(inquiry) {
     normalizeFingerprint(inquiry.name) === "robertglild" &&
     normalizeFingerprint(inquiry.company) === "google"
   );
+}
+
+function successResponse() {
+  return jsonResponse({ ok: true, message: "Inquiry sent." });
+}
+
+function getClientIp(request) {
+  const forwardedFor = request.headers.get("x-forwarded-for") || "";
+  return cleanText(
+    request.headers.get("cf-connecting-ip") ||
+      forwardedFor.split(",")[0] ||
+      request.headers.get("x-real-ip") ||
+      "unknown",
+    120
+  );
+}
+
+function isTrustedSiteRequest(request) {
+  const allowedHosts = new Set(["chigox.com", "www.chigox.com"]);
+  const headers = [request.headers.get("origin"), request.headers.get("referer")].filter(Boolean);
+
+  return headers.some((value) => {
+    try {
+      return allowedHosts.has(new URL(value).hostname);
+    } catch {
+      return false;
+    }
+  });
+}
+
+async function isRateLimited(request) {
+  if (!globalThis.caches?.default) {
+    console.warn("[rate-limit-unavailable] Cloudflare Cache API is not available.");
+    return false;
+  }
+
+  const clientIp = getClientIp(request);
+  if (!clientIp || clientIp === "unknown") return false;
+
+  const now = Date.now();
+  const cache = globalThis.caches.default;
+  const cacheKey = new Request(`https://chigox.local/inquiry-rate/${encodeURIComponent(clientIp)}`);
+  const cached = await cache.match(cacheKey);
+  let record = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_SECONDS * 1000 };
+
+  if (cached) {
+    try {
+      const cachedRecord = await cached.json();
+      if (Number.isFinite(cachedRecord.count) && Number.isFinite(cachedRecord.resetAt)) {
+        record = cachedRecord;
+      }
+    } catch {
+      record = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_SECONDS * 1000 };
+    }
+  }
+
+  if (record.resetAt <= now) {
+    record = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_SECONDS * 1000 };
+  }
+
+  record.count += 1;
+  const ttl = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
+
+  await cache.put(
+    cacheKey,
+    new Response(JSON.stringify(record), {
+      headers: {
+        "cache-control": `max-age=${ttl}`,
+        "content-type": "application/json; charset=utf-8"
+      }
+    })
+  );
+
+  if (record.count > RATE_LIMIT_MAX_REQUESTS) {
+    console.warn("[rate-limited] inquiry suppressed", {
+      clientIp,
+      count: record.count,
+      windowSeconds: RATE_LIMIT_WINDOW_SECONDS
+    });
+    return true;
+  }
+
+  return false;
+}
+
+async function verifyTurnstile(request, env, token) {
+  const secret = getTurnstileSecret(env);
+  if (!secret) {
+    if (!isTrustedSiteRequest(request)) {
+      console.warn("[turnstile-missing-secret] untrusted inquiry suppressed");
+      return false;
+    }
+
+    console.warn("[turnstile-missing-secret] trusted inquiry allowed without Turnstile verification.");
+    return true;
+  }
+
+  if (!token) {
+    console.warn("[turnstile-failed] missing token");
+    return false;
+  }
+
+  const body = new FormData();
+  body.set("secret", secret);
+  body.set("response", token);
+
+  const clientIp = getClientIp(request);
+  if (clientIp && clientIp !== "unknown") {
+    body.set("remoteip", clientIp);
+  }
+
+  const response = await fetch(TURNSTILE_SITEVERIFY_ENDPOINT, {
+    method: "POST",
+    body
+  });
+
+  if (!response.ok) {
+    console.warn("[turnstile-failed] siteverify request failed", { status: response.status });
+    return false;
+  }
+
+  const result = await response.json();
+  if (!result.success) {
+    console.warn("[turnstile-failed] siteverify rejected token", {
+      errors: result["error-codes"] || []
+    });
+    return false;
+  }
+
+  return true;
 }
 
 function buildEmail(inquiry) {
@@ -130,8 +295,12 @@ async function sendInquiryEmail(env, inquiry) {
   }
 }
 
-export async function onRequestGet() {
-  return jsonResponse({ ok: true, service: "CHIGOX inquiry endpoint" });
+export async function onRequestGet({ env } = {}) {
+  return jsonResponse({
+    ok: true,
+    service: "CHIGOX inquiry endpoint",
+    turnstileSiteKey: getTurnstileSiteKey(env)
+  });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -145,14 +314,22 @@ export async function onRequestPost({ request, env }) {
         name: inquiry.name,
         company: inquiry.company
       });
-      return jsonResponse({ ok: true, message: "Inquiry sent." });
+      return successResponse();
+    }
+
+    if (await isRateLimited(request)) {
+      return successResponse();
+    }
+
+    if (!(await verifyTurnstile(request, env, inquiry.turnstileToken))) {
+      return jsonResponse({ ok: false, error: GENERIC_VERIFICATION_ERROR }, 400);
     }
 
     const inputError = validateInquiry(inquiry);
     if (inputError) return jsonResponse({ ok: false, error: inputError }, 400);
 
     await sendInquiryEmail(env, inquiry);
-    return jsonResponse({ ok: true, message: "Inquiry sent." });
+    return successResponse();
   } catch (error) {
     console.error("Inquiry submission failed", error);
     return jsonResponse({ ok: false, error: "Inquiry could not be sent." }, 500);

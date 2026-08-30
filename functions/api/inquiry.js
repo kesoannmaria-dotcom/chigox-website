@@ -68,6 +68,15 @@ function validateInquiry(inquiry) {
   return "";
 }
 
+const normalizeFingerprint = (value) => cleanText(value, 200).toLowerCase();
+
+function isEmergencyBlockedInquiry(inquiry) {
+  return (
+    normalizeFingerprint(inquiry.name) === "robertglild" &&
+    normalizeFingerprint(inquiry.company) === "google"
+  );
+}
+
 function buildEmail(inquiry) {
   const submittedAt = new Date().toISOString();
   const subjectProduct = inquiry.product || "General inquiry";
@@ -131,6 +140,14 @@ export async function onRequestPost({ request, env }) {
 
   try {
     const inquiry = await parseInquiry(request);
+    if (isEmergencyBlockedInquiry(inquiry)) {
+      console.warn("[spam-blocked] inquiry fingerprint suppressed", {
+        name: inquiry.name,
+        company: inquiry.company
+      });
+      return jsonResponse({ ok: true, message: "Inquiry sent." });
+    }
+
     const inputError = validateInquiry(inquiry);
     if (inputError) return jsonResponse({ ok: false, error: inputError }, 400);
 

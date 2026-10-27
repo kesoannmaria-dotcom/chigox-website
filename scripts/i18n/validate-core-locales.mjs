@@ -41,6 +41,10 @@ const forbiddenVisibleEnglish = {
   fr: ["Home", "Products", "About Us", "Contact Us", "Request Quote", "Send Inquiry", "Product Overview", "Key Features", "Basic Information", "Technical Specifications", "All Products"],
   pt: ["Home", "Products", "About Us", "Contact Us", "Request Quote", "Send Inquiry", "Product Overview", "Key Features", "Basic Information", "Technical Specifications", "All Products", "Applications"],
 };
+const forbiddenTranslationArtifacts = {
+  fr: [/ZXQTECH/i, /CHIGOX-\d{4}/i, /\boscilloscopes?\b/i, /mélange d'examens/i, /preuves de sites vérifiés/i],
+  pt: [/ZXQTECH/i, /CHIGOX-\d{4}/i, /\bosciloscópios?\b/i, /\bCase Mix\b/i, /estratégia de investigação/i, /evidências verificadas do site/i],
+};
 
 for (const languageKey of ["fr", "pt"]) {
   for (const definition of corePageDefinitions) {
@@ -53,6 +57,8 @@ for (const languageKey of ["fr", "pt"]) {
     assert(html.includes(`<link rel="canonical" href="${absoluteUrl(languageKey, definition.route)}">`), `${relativeFile}: canonical mismatch`);
     assert(html.includes(`hreflang="fr" href="${absoluteUrl("fr", definition.route)}"`), `${relativeFile}: French hreflang mismatch`);
     assert(html.includes(`hreflang="pt-BR" href="${absoluteUrl("pt", definition.route)}"`), `${relativeFile}: pt-BR hreflang mismatch`);
+    const structuredPageUrls = [...html.matchAll(/"mainEntityOfPage":"([^"]+)"/g)].map((match) => match[1]);
+    assert(structuredPageUrls.every((url) => url === absoluteUrl(languageKey, definition.route)), `${relativeFile}: structured page URL mismatch`);
     assert((html.match(/<h1\b/gi) ?? []).length === (sourceHtml.match(/<h1\b/gi) ?? []).length, `${relativeFile}: h1 structure changed`);
     assert(!/ZXQTECH|CHIGOX-\d{4}/i.test(html), `${relativeFile}: placeholder artifact found`);
 
@@ -60,6 +66,9 @@ for (const languageKey of ["fr", "pt"]) {
     assert(!technical.missing.length && !technical.unexpected.length, `${relativeFile}: protected technical values changed`);
 
     const withoutScripts = html.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "");
+    for (const pattern of forbiddenTranslationArtifacts[languageKey]) {
+      assert(!pattern.test(withoutScripts), `${relativeFile}: rejected translation artifact ${pattern}`);
+    }
     for (const phrase of forbiddenVisibleEnglish[languageKey]) {
       assert(!new RegExp(`>\\s*${phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*<`, "i").test(withoutScripts), `${relativeFile}: untranslated UI phrase ${phrase}`);
     }
@@ -97,4 +106,4 @@ if (errors.length) {
 }
 
 console.log(JSON.stringify(stats, null, 2));
-console.log("CHIGOX FR/PT core locale validation passed.");
+console.log("CHIGOX FR/PT full-site locale validation passed.");

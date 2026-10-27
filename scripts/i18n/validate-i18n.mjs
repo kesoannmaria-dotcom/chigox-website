@@ -37,7 +37,7 @@ for (const definition of pageDefinitions) {
 
 const { documents, missingFiles } = collectPublishedDocuments(root);
 assert(missingFiles.length === 0, `published files missing:\n${missingFiles.join("\n")}`);
-assert(documents.length === 576, `published canonical documents: expected 576, found ${documents.length}`);
+assert(documents.length === 594, `published canonical documents: expected 594, found ${documents.length}`);
 
 for (const document of documents) {
   const html = read(document.relativeFile);
@@ -67,10 +67,6 @@ for (const languageKey of ["fr", "pt"]) {
     const relativeFile = fileFor(languageKey, definition.route);
     assert(fs.existsSync(path.join(root, relativeFile)), `${languageKey}: missing core page ${relativeFile}`);
     assert(sitemapSet.has(absoluteUrl(languageKey, definition.route)), `${languageKey}: sitemap missing ${definition.route}`);
-  }
-  for (const definition of pageDefinitions.filter(({ type }) => type === "blog-article")) {
-    assert(!fs.existsSync(path.join(root, fileFor(languageKey, definition.route))), `${languageKey}: Blog article must remain ungenerated (${definition.route})`);
-    assert(!sitemapSet.has(absoluteUrl(languageKey, definition.route)), `${languageKey}: ungenerated Blog article must not appear in sitemap (${definition.route})`);
   }
 }
 
@@ -126,7 +122,7 @@ for (const relativeFile of allHtml) {
 }
 
 assert(languageMenuCount === allHtml.length, `language menu regression: expected all ${allHtml.length} pages, found ${languageMenuCount}`);
-assert(hreflangPageCount === 567, `hreflang regression: expected 567 core pages, found ${hreflangPageCount}`);
+assert(hreflangPageCount === 594, `hreflang regression: expected 594 published pages, found ${hreflangPageCount}`);
 assert(localizedLanguageKeys.every((languageKey) => missingSixLanguageRoutes.size === 15), "six-language missing-route baseline changed");
 
 const redirects = read("_redirects");
@@ -153,8 +149,8 @@ for (const definition of pageDefinitions.filter(({ type }) => type === "blog-ind
 }
 
 const generation = runGeneration({ root, write: false });
-assert(generation.plannedDocuments === 18, `FR/PT Blog plan: expected 18 documents, found ${generation.plannedDocuments}`);
-assert(generation.sitemapMappedUrls === 576, `sitemap generator: expected 576 mapped URLs, found ${generation.sitemapMappedUrls}`);
+assert(generation.plannedDocuments === 0, `FR/PT documents: expected no planned documents, found ${generation.plannedDocuments}`);
+assert(generation.sitemapMappedUrls === 594, `sitemap generator: expected 594 mapped URLs, found ${generation.sitemapMappedUrls}`);
 assert(generation.sitemapPreservedUnmappedUrls.length === 0, "sitemap generator: unresolved URLs remain outside the page map");
 assert(generation.changedDocuments === 0, `metadata generator: expected deterministic output, found ${generation.changedDocuments} changes`);
 
@@ -192,8 +188,8 @@ const report = {
   currentSitemapUrls: sitemapUrls.length,
   preservedUnmappedSitemapUrls: unmappedSitemapUrls,
   missingSixLanguagePages: localizedLanguageKeys.length * missingSixLanguageRoutes.size,
-  publishedFrenchPortugueseCorePages: 134,
-  plannedFrenchPortugueseBlogArticles: 18,
+  publishedFrenchPortuguesePages: 152,
+  publishedFrenchPortugueseBlogArticles: 18,
   currentLanguageMenus: languageMenuCount,
   currentHreflangPages: hreflangPageCount,
   generatorDryRunChanges: generation.changedDocuments,
@@ -209,4 +205,4 @@ if (errors.length) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-console.log("CHIGOX Phase 1B-1 i18n validation passed.");
+console.log("CHIGOX Phase 1B-2 i18n validation passed.");

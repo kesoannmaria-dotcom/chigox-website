@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { collectCoreSourceStrings } from "./core-localization.mjs";
 import { extractProtectedTechnicalTokens, terminology } from "./translation-rules.mjs";
+import { applyBlogTranslationReview } from "./blog-translation-overrides.mjs";
 
 const ENDPOINT = "https://translate.googleapis.com/translate_a/single";
 const TARGETS = Object.freeze({ fr: "fr", pt: "pt" });
@@ -45,6 +46,7 @@ const manualOverrides = Object.freeze({
     "CG-7C Skin Graft Mesher from CHIGOX Medical Technology. CG-7C Skin Graft Mesher for professional medical and veterinary applications.": "Expanseur de greffe cutanée CG-7C de CHIGOX Medical Technology. Conçu pour les applications médicales et vétérinaires professionnelles.",
     "CG-7C Skin Graft Mesher image 1": "Image 1 de l'expanseur de greffe cutanée CG-7C",
     "CG-7C Skin Graft Mesher image 2": "Image 2 de l'expanseur de greffe cutanée CG-7C",
+    "The CGR-100 table lists outer diameters from 1.8 mm to 10 mm across the published models. Working lengths include 100 mm, 175 mm, 300 mm and 320 mm depending on the model. Listed view directions include 0 degree, 30 degree and 70 degree options, while listed field of view values include 70 degree and 80 degree.": "Le tableau du CGR-100 indique des diamètres extérieurs compris entre 1.8 mm et 10 mm selon les modèles publiés. Les longueurs de travail disponibles sont de 100 mm, 175 mm, 300 mm et 320 mm selon le modèle. Les directions de visée proposées sont de 0 degré, 30 degrés et 70 degrés, avec des champs de vision de 70 degrés et 80 degrés.",
   },
   pt: {
     "Request Quote": terminology.pt.requestQuote,
@@ -84,6 +86,7 @@ const manualOverrides = Object.freeze({
     "CG-7C Skin Graft Mesher from CHIGOX Medical Technology. CG-7C Skin Graft Mesher for professional medical and veterinary applications.": "Expansor de enxerto de pele CG-7C da CHIGOX Medical Technology. Desenvolvido para aplicações médicas e veterinárias profissionais.",
     "CG-7C Skin Graft Mesher image 1": "Imagem 1 do expansor de enxerto de pele CG-7C",
     "CG-7C Skin Graft Mesher image 2": "Imagem 2 do expansor de enxerto de pele CG-7C",
+    "The CGR-100 table lists outer diameters from 1.8 mm to 10 mm across the published models. Working lengths include 100 mm, 175 mm, 300 mm and 320 mm depending on the model. Listed view directions include 0 degree, 30 degree and 70 degree options, while listed field of view values include 70 degree and 80 degree.": "A tabela do CGR-100 indica diâmetros externos de 1.8 mm a 10 mm entre os modelos publicados. Os comprimentos de trabalho disponíveis são 100 mm, 175 mm, 300 mm e 320 mm, conforme o modelo. As direções de visão disponíveis são 0 grau, 30 graus e 70 graus, com campos de visão de 70 graus e 80 graus.",
   },
 });
 
@@ -147,9 +150,11 @@ async function translateBatch(batch, target) {
 
 async function buildCatalog(root, languageKey) {
   const sources = collectCoreSourceStrings(root);
-  const entries = sources.map((source) => ({ source, ...protectTechnicalContent(source) }));
+  const catalogFile = path.join(root, "scripts", "i18n", "translations", `core-${languageKey}.json`);
+  const existing = fs.existsSync(catalogFile) ? JSON.parse(fs.readFileSync(catalogFile, "utf8")) : {};
+  const catalog = Object.fromEntries(sources.filter((source) => existing[source]).map((source) => [source, existing[source]]));
+  const entries = sources.filter((source) => !catalog[source]).map((source) => ({ source, ...protectTechnicalContent(source) }));
   const batches = createBatches(entries);
-  const catalog = {};
   for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
     const batch = batches[batchIndex];
     const translated = await translateBatch(batch, TARGETS[languageKey]);
@@ -159,6 +164,7 @@ async function buildCatalog(root, languageKey) {
     });
     console.log(`${languageKey}: translated batch ${batchIndex + 1}/${batches.length}`);
   }
+  console.log(`${languageKey}: preserved ${Object.keys(existing).filter((source) => sources.includes(source)).length}, translated ${entries.length}`);
   const approvedTerminology = Object.fromEntries(Object.keys(terminology.en).map((key) => [terminology.en[key], terminology[languageKey][key]]));
   Object.assign(catalog, approvedTerminology, manualOverrides[languageKey]);
   for (const source of Object.keys(catalog)) {
@@ -166,7 +172,8 @@ async function buildCatalog(root, languageKey) {
       ? catalog[source].replace(/(\d+(?:\.\d+)?)-inch\b/g, "$1 pouces").replace(/\b3-in-1\b/g, "3-en-1")
       : catalog[source].replace(/(\d+(?:\.\d+)?)-inch\b/g, "$1 polegadas").replace(/\b3-in-1\b/g, "3 em 1");
   }
-  return Object.fromEntries(Object.entries(catalog).sort(([a], [b]) => a.localeCompare(b, "en")));
+  const reviewed = applyBlogTranslationReview(catalog, languageKey);
+  return Object.fromEntries(Object.entries(reviewed).sort(([a], [b]) => a.localeCompare(b, "en")));
 }
 
 const root = process.cwd();

@@ -13,7 +13,8 @@ import { extractProtectedTechnicalTokens } from "./translation-rules.mjs";
 
 const TRANSLATABLE_ATTRIBUTES = new Set(["alt", "aria-label", "placeholder", "title", "value"]);
 const TRANSLATABLE_META = new Set(["description", "og:title", "og:description", "twitter:title", "twitter:description"]);
-const JSON_LITERAL_KEYS = new Set(["@context", "@type", "@id", "model", "url", "image", "item"]);
+const JSON_LITERAL_KEYS = new Set(["@context", "@type", "@id", "model", "url", "image", "item", "mainEntityOfPage"]);
+const JSON_URL_KEYS = new Set(["@id", "url", "item", "mainEntityOfPage"]);
 const NON_LANGUAGE_VALUES = new Set([
   "article", "website", "CHIGOX", "Facebook", "Instagram", "WhatsApp", "YouTube", "DICOM", "WiFi", "USB",
   "HTML", "CMOS", "LED", "LCD", "EMR", "POCUS", "OEM", "ODM", "TBD", "Yes", "W",
@@ -125,7 +126,7 @@ function localizeInternalUrl(rawValue, languageKey, sourceRoute) {
   }
   if (url.origin !== SITE_ORIGIN) return rawValue;
   const definition = pageByRoute.get(url.pathname);
-  if (definition && definition.type !== "blog-article") {
+  if (definition) {
     return `${localizedPath(languageKey, definition.route)}${url.search}${url.hash}`;
   }
   return `${url.pathname}${url.search}${url.hash}`;
@@ -136,7 +137,7 @@ function localizeJsonLd(html, languageKey, catalog, sourceRoute) {
     const parsed = JSON.parse(json);
     const localized = walkJsonStrings(parsed, (value, key) => {
       if (JSON_LITERAL_KEYS.has(key)) {
-        if (["@id", "url", "item"].includes(key) && value.startsWith(SITE_ORIGIN)) {
+        if (JSON_URL_KEYS.has(key) && value.startsWith(SITE_ORIGIN)) {
           return `${SITE_ORIGIN}${localizeInternalUrl(value, languageKey, sourceRoute)}`;
         }
         return value;

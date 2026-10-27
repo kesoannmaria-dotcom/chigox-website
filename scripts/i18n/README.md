@@ -1,12 +1,12 @@
 # CHIGOX multilingual infrastructure
 
-This directory is the single source of truth for the nine-language rollout. Phase 1B-1 publishes the 67 non-article core pages in French and Brazilian Portuguese while keeping both language-selector entries hidden.
+This directory is the single source of truth for the nine-language rollout. Phase 1B-2 publishes all 76 canonical pages in French and Brazilian Portuguese while keeping both language-selector entries hidden.
 
 ## Scope
 
 - `page-map.mjs`: the 76 canonical English page families confirmed after the Phase 1A route audit, language lifecycle state and safe fallback rules.
 - `generate-language-metadata.mjs`: static language-selector, exact-only hreflang and sitemap generation.
-- `core-localization.mjs`: deterministic extraction and generation for the 67 FR/PT core pages.
+- `core-localization.mjs`: deterministic extraction and generation for all 76 FR/PT canonical pages.
 - `fetch-core-translations.mjs`: development-only translation-catalog builder; it is never shipped to the browser or used at runtime.
 - `generate-core-locales.mjs`: generates `/fr/` and `/pt/` from reviewed catalogs while preserving the English canonical structure.
 - `translations/core-fr.json` and `translations/core-pt.json`: auditable exact-string translation catalogs.
@@ -18,7 +18,7 @@ This directory is the single source of truth for the nine-language rollout. Phas
 
 1. The generator is dry-run by default. Write mode is blocked before any file changes while unmapped sitemap routes or language-selector template gaps remain.
 2. A language switch may use a category/home fallback, but hreflang is emitted only for an exact translated page.
-3. `fr` and `pt-BR` remain hidden in the language selector until the later 76/76 acceptance gate. Their 67 reviewed core pages are valid canonical documents and are included in hreflang and sitemap.
+3. `fr` and `pt-BR` remain hidden in the language selector until the 76/76 human acceptance gate. All generated pages are valid canonical documents and are included in hreflang and sitemap.
 4. Existing sitemap URLs outside the page map are preserved. They must be resolved explicitly instead of being silently removed.
 5. Translation must pass the protected technical-token check before a page can be marked published.
 6. Product models, specifications, certifications and claims must come from the English source. Translation may not invent or normalize them.

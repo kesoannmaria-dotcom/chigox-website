@@ -115,10 +115,8 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
     if (!original.includes(`<link rel="canonical" href="${expectedCanonical}">`)) {
       throw new Error(`${document.relativeFile}: canonical does not match page-map (${expectedCanonical})`);
     }
-    let next = document.definition.type === "blog-article" ? original : updateHreflang(original, document.definition.key);
-    const menuResult = document.definition.type === "blog-article"
-      ? { html: next, updated: /<details class="language-menu">[\s\S]*?<\/details>/.test(next) }
-      : updateLanguageMenu(next, document.definition.key, document.languageKey);
+    let next = updateHreflang(original, document.definition.key);
+    const menuResult = updateLanguageMenu(next, document.definition.key, document.languageKey);
     next = menuResult.html;
     if (!menuResult.updated) missingLanguageMenus.push(document.relativeFile);
     if (next !== original) {

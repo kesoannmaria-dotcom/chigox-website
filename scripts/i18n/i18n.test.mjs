@@ -12,6 +12,7 @@ import {
 import { renderHreflang, renderLanguageMenu, runGeneration, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
 import { collectCoreSourceStrings, generateCoreLocales } from "./core-localization.mjs";
 import { assertProtectedTechnicalContent, compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
+import { applyBlogTranslationReview } from "./blog-translation-overrides.mjs";
 
 test("page map includes the Phase 1A canonical decisions", () => {
   assert.equal(pageDefinitions.length, 76);
@@ -23,12 +24,12 @@ test("page map includes the Phase 1A canonical decisions", () => {
   assert.equal(resolveLanguageTarget("cgvet-a220t", "es").pageKey, "veterinary");
 });
 
-test("FR and PT-BR core sites are published while their menu entries stay disabled", () => {
+test("FR and PT-BR sites are complete while their menu entries stay disabled", () => {
   assert.equal(languages.fr.enabled, false);
   assert.equal(languages.pt.enabled, false);
   assert.equal(languages.pt.code, "pt-BR");
   assert.equal(translationStatus("home", "fr"), "published");
-  assert.equal(translationStatus("blog-rigid-endoscope-guide", "fr"), "planned");
+  assert.equal(translationStatus("blog-rigid-endoscope-guide", "fr"), "published");
   assert.equal(resolveLanguageTarget("home", "pt").kind, "disabled");
 });
 
@@ -83,23 +84,34 @@ test("terminology exists for all nine languages", () => {
   for (const terms of Object.values(terminology)) assert.equal(Object.keys(terms).length, 12);
 });
 
+test("Blog review distinguishes endoscopes from commercial scope", () => {
+  const reviewed = applyBlogTranslationReview({
+    "One scope for the clinic": "Um osciloscópio para a clínica",
+    "Quotation scope": "Escopo da cotação",
+    "Start with Case Mix, Not the Quotation Sheet": "Case Mix",
+  }, "pt");
+  assert.equal(reviewed["One scope for the clinic"], "Um endoscópio para a clínica");
+  assert.equal(reviewed["Quotation scope"], "Escopo da cotação");
+  assert.equal(reviewed["Start with Case Mix, Not the Quotation Sheet"], "Comece pelo perfil dos casos clínicos, não pela folha de cotação");
+});
+
 test("Phase 1B metadata generation is deterministic", () => {
   const report = runGeneration({ root: process.cwd(), write: false });
   assert.equal(report.mode, "dry-run");
   assert.equal(report.canonicalPages, 76);
-  assert.equal(report.publishedDocuments, 576);
-  assert.equal(report.plannedDocuments, 18);
+  assert.equal(report.publishedDocuments, 594);
+  assert.equal(report.plannedDocuments, 0);
   assert.equal(report.changedDocuments, 0);
   assert.deepEqual(report.missingLanguageMenus, []);
   assert.deepEqual(report.sitemapPreservedUnmappedUrls, []);
 });
 
-test("FR and PT-BR core generation is complete and deterministic", () => {
-  assert.equal(corePageDefinitions.length, 67);
-  assert.equal(collectCoreSourceStrings(process.cwd()).length, 1620);
+test("FR and PT-BR full-site generation is complete and deterministic", () => {
+  assert.equal(corePageDefinitions.length, 76);
+  assert.equal(collectCoreSourceStrings(process.cwd()).length, 2160);
   const report = generateCoreLocales({ root: process.cwd(), write: false });
-  assert.equal(report.languages.fr.pages, 67);
-  assert.equal(report.languages.pt.pages, 67);
+  assert.equal(report.languages.fr.pages, 76);
+  assert.equal(report.languages.pt.pages, 76);
   assert.equal(report.languages.fr.changed, 0);
   assert.equal(report.languages.pt.changed, 0);
 });

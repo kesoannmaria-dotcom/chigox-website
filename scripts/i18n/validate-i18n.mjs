@@ -9,6 +9,7 @@ import {
   localizedLanguageKeys,
   missingSixLanguageRoutes,
   pageDefinitions,
+  resolvedRouteDecisions,
   translationStatus,
 } from "./page-map.mjs";
 import { collectPublishedDocuments, fileFor, runGeneration } from "./generate-language-metadata.mjs";
@@ -21,7 +22,7 @@ const read = (relativeFile) => fs.readFileSync(path.join(root, relativeFile), "u
 
 const keys = pageDefinitions.map(({ key }) => key);
 const routes = pageDefinitions.map(({ route }) => route);
-assert(pageDefinitions.length === 74, `page-map: expected 74 canonical pages, found ${pageDefinitions.length}`);
+assert(pageDefinitions.length === 76, `page-map: expected 76 canonical pages after Phase 1A audit, found ${pageDefinitions.length}`);
 assert(new Set(keys).size === keys.length, "page-map: duplicate page keys");
 assert(new Set(routes).size === routes.length, "page-map: duplicate routes");
 assert(pageDefinitions.every(({ route }) => route.startsWith("/") && route.endsWith("/")), "page-map: every route must start and end with '/'");
@@ -33,7 +34,7 @@ for (const definition of pageDefinitions) {
 
 const { documents, missingFiles } = collectPublishedDocuments(root);
 assert(missingFiles.length === 0, `published files missing:\n${missingFiles.join("\n")}`);
-assert(documents.length === 434, `published canonical documents: expected 434, found ${documents.length}`);
+assert(documents.length === 442, `published canonical documents: expected 442, found ${documents.length}`);
 
 for (const document of documents) {
   const html = read(document.relativeFile);
@@ -55,7 +56,7 @@ const mappedUrls = new Set(pageDefinitions.flatMap((definition) => activeLanguag
   .filter((languageKey) => translationStatus(definition.key, languageKey) === "published")
   .map((languageKey) => absoluteUrl(languageKey, definition.route))));
 const unmappedSitemapUrls = sitemapUrls.filter((url) => !mappedUrls.has(url));
-assert(unmappedSitemapUrls.length === 6, `sitemap: expected 6 preserved unmapped routes, found ${unmappedSitemapUrls.length}`);
+assert(unmappedSitemapUrls.length === 0, `sitemap: expected no unmapped routes, found ${unmappedSitemapUrls.length}`);
 
 for (const languageKey of ["fr", "pt"]) {
   assert(!fs.existsSync(path.join(root, languages[languageKey].prefix)), `${languageKey}: planned language directory must not exist in Phase 0`);
@@ -104,14 +105,37 @@ for (const relativeFile of allHtml) {
   }
 }
 
-assert(languageMenuCount === 547, `language menu regression: expected 547 pages, found ${languageMenuCount}`);
+assert(languageMenuCount === allHtml.length, `language menu regression: expected all ${allHtml.length} pages, found ${languageMenuCount}`);
 assert(hreflangPageCount === 119, `hreflang regression: expected 119 current pages, found ${hreflangPageCount}`);
-assert(localizedLanguageKeys.every((languageKey) => missingSixLanguageRoutes.size === 14), "six-language missing-route baseline changed");
+assert(localizedLanguageKeys.every((languageKey) => missingSixLanguageRoutes.size === 15), "six-language missing-route baseline changed");
+
+const redirects = read("_redirects");
+assert(!redirects.includes("/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/ /products/ultrasound/handheld-ultrasound/convex-scanner/"), "redirects: independent convex/transvaginal category must not redirect to convex-scanner");
+assert(redirects.includes("/products/ultrasound/medical/portable-color-ultrasound/ /products/ultrasound/portable-color-ultrasound/ 301"), "redirects: portable color category legacy redirect missing");
+assert(redirects.includes("/products/ultrasound/medical/portable-color-ultrasound/cg-p31/ /products/ultrasound/portable-color-ultrasound/cg-p31/ 301"), "redirects: CG-P31 legacy redirect missing");
+assert(!fs.existsSync(path.join(root, "products/ultrasound/medical/portable-color-ultrasound/index.html")), "portable color: legacy category mirror must be removed");
+assert(!fs.existsSync(path.join(root, "products/ultrasound/medical/portable-color-ultrasound/cg-p31/index.html")), "portable color: legacy CG-P31 mirror must be removed");
+assert(sitemapSet.has(`${SITE_ORIGIN}/products/veterinary/vet-anesthesia-machine/cgvet-a220t/`), "sitemap: CGVET-A220T missing");
+assert(sitemapSet.has(`${SITE_ORIGIN}/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/`), "sitemap: convex/transvaginal category missing");
+
+const convexMain = read("products/ultrasound/handheld-ultrasound/convex-scanner/index.html").match(/<main>[\s\S]*?<\/main>/)?.[0] ?? "";
+const transvaginalMain = read("products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/index.html").match(/<main>[\s\S]*?<\/main>/)?.[0] ?? "";
+assert(convexMain.includes("CGU-C") && !convexMain.includes("CGU-03"), "convex category: must contain CGU-C only");
+assert(transvaginalMain.includes("CGU-03") && !transvaginalMain.includes("CGU-C"), "convex/transvaginal category: must contain CGU-03 only");
+
+for (const definition of pageDefinitions.filter(({ type }) => type === "blog-index" || type === "blog-article")) {
+  const html = read(fileFor("en", definition.route));
+  assert(html.includes('class="language-menu"'), `${definition.route}: English blog language menu missing`);
+  assert(html.includes(`href="${definition.route}" aria-current="true"`), `${definition.route}: English language link must preserve the current page`);
+  if (definition.type === "blog-article") {
+    assert((html.match(/data-language-fallback="true"/g) ?? []).length === 6, `${definition.route}: expected six safe language fallbacks`);
+  }
+}
 
 const generation = runGeneration({ root, write: false });
-assert(generation.plannedDocuments === 148, `FR/PT plan: expected 148 documents, found ${generation.plannedDocuments}`);
-assert(generation.sitemapMappedUrls === 434, `sitemap generator: expected 434 mapped URLs, found ${generation.sitemapMappedUrls}`);
-assert(generation.sitemapPreservedUnmappedUrls.length === 6, "sitemap generator must preserve the 6 unresolved localized category URLs");
+assert(generation.plannedDocuments === 152, `FR/PT plan: expected 152 documents, found ${generation.plannedDocuments}`);
+assert(generation.sitemapMappedUrls === 442, `sitemap generator: expected 442 mapped URLs, found ${generation.sitemapMappedUrls}`);
+assert(generation.sitemapPreservedUnmappedUrls.length === 0, "sitemap generator: unresolved URLs remain outside the page map");
 
 for (const anomaly of knownRouteAnomalies) warnings.push(`${anomaly.severity}: ${anomaly.id} - ${anomaly.detail}`);
 for (const file of generation.missingLanguageMenus) warnings.push(`template-gap: ${file} has no language selector to update`);
@@ -122,11 +146,12 @@ const report = {
   currentSitemapUrls: sitemapUrls.length,
   preservedUnmappedSitemapUrls: unmappedSitemapUrls,
   missingSixLanguagePages: localizedLanguageKeys.length * missingSixLanguageRoutes.size,
-  plannedFrenchPortuguesePages: 148,
+  plannedFrenchPortuguesePages: 152,
   currentLanguageMenus: languageMenuCount,
   currentHreflangPages: hreflangPageCount,
   generatorDryRunChanges: generation.changedDocuments,
   templateGaps: generation.missingLanguageMenus,
+  resolvedRouteDecisions,
   warnings,
 };
 
@@ -136,4 +161,4 @@ if (errors.length) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-console.log("CHIGOX Phase 0 i18n validation passed.");
+console.log("CHIGOX Phase 1A i18n validation passed.");

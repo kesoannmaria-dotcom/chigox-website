@@ -4,7 +4,7 @@ This directory is the single source of truth for the nine-language rollout. It d
 
 ## Scope
 
-- `page-map.mjs`: the approved 74 canonical English page families, language lifecycle state and safe fallback rules.
+- `page-map.mjs`: the 76 canonical English page families confirmed after the Phase 1A route audit, language lifecycle state and safe fallback rules.
 - `generate-language-metadata.mjs`: static language-selector, exact-only hreflang and sitemap generation.
 - `translation-rules.mjs`: approved terminology and protection for models, specifications, units and certifications.
 - `validate-i18n.mjs`: repository, mapping, canonical, reciprocal hreflang, sitemap and rollout-boundary checks.
@@ -14,7 +14,7 @@ This directory is the single source of truth for the nine-language rollout. It d
 
 1. The generator is dry-run by default. Write mode is blocked before any file changes while unmapped sitemap routes or language-selector template gaps remain.
 2. A language switch may use a category/home fallback, but hreflang is emitted only for an exact translated page.
-3. `fr` and `pt-BR` remain disabled until all 74 pages for that language pass review. Disabled languages are excluded from hreflang and sitemap.
+3. `fr` and `pt-BR` remain disabled until all 76 pages for that language pass review. Disabled languages are excluded from hreflang and sitemap.
 4. Existing sitemap URLs outside the page map are preserved. They must be resolved explicitly instead of being silently removed.
 5. Translation must pass the protected technical-token check before a page can be marked published.
 6. Product models, specifications, certifications and claims must come from the English source. Translation may not invent or normalize them.
@@ -37,10 +37,8 @@ Always inspect `git diff` immediately after write mode. Do not publish FR/PT or 
 
 ## Phase 1 publication workflow
 
-1. Resolve the convex/transvaginal category canonical decision and audit CGVET-A220T.
-2. Normalize the English blog navigation template so the generator can place a language selector consistently.
-3. Translate from an English canonical page and verify all protected technical tokens.
-4. Create the target file, then update its publication state in `page-map.mjs`.
-5. Run unit tests and repository validation.
-6. Run the metadata generator in dry-run mode and review fallback, hreflang and sitemap output.
-7. Use write mode only on an isolated branch, then run HTTP, mobile, desktop and inquiry regression checks.
+1. Translate from an English canonical page and verify all protected technical tokens.
+2. Create the target file, then update its publication state in `page-map.mjs`.
+3. Run unit tests and repository validation.
+4. Run the metadata generator in dry-run mode and review fallback, hreflang and sitemap output.
+5. Use write mode only on an isolated branch, then run HTTP, mobile, desktop and inquiry regression checks.

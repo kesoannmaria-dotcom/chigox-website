@@ -51,7 +51,8 @@ export const pageDefinitions = Object.freeze([
   page("cgu-lcp", "/products/ultrasound/handheld-ultrasound/3-in-1-linear-convex-phased-array-scanner/cgu-lcp/", "product-detail", "three-in-one-scanner"),
   page("convex-scanner", "/products/ultrasound/handheld-ultrasound/convex-scanner/", "product-category", "handheld-ultrasound"),
   page("cgu-c", "/products/ultrasound/handheld-ultrasound/convex-scanner/cgu-c/", "product-detail", "convex-scanner"),
-  page("cgu-03", "/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/cgu-03/", "product-detail", "handheld-ultrasound"),
+  page("convex-transvaginal-scanner", "/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/", "product-category", "handheld-ultrasound"),
+  page("cgu-03", "/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/cgu-03/", "product-detail", "convex-transvaginal-scanner"),
   page("linear-scanner", "/products/ultrasound/handheld-ultrasound/linear-scanner/", "product-category", "handheld-ultrasound"),
   page("cgu-l", "/products/ultrasound/handheld-ultrasound/linear-scanner/cgu-l/", "product-detail", "linear-scanner"),
   page("phased-array-scanner", "/products/ultrasound/handheld-ultrasound/phased-array-scanner/", "product-category", "handheld-ultrasound"),
@@ -63,6 +64,7 @@ export const pageDefinitions = Object.freeze([
   page("cgv-300h", "/products/veterinary/gastroscope/cgv-300h/", "product-detail", "veterinary-gastroscope"),
   page("cgv-g", "/products/veterinary/gastroscope/cgv-g/", "product-detail", "veterinary-gastroscope"),
   page("vet-anesthesia-machine", "/products/veterinary/vet-anesthesia-machine/", "product-category", "veterinary"),
+  page("cgvet-a220t", "/products/veterinary/vet-anesthesia-machine/cgvet-a220t/", "product-detail", "vet-anesthesia-machine"),
   page("cgvet-30", "/products/veterinary/vet-anesthesia-machine/cgvet-30/", "product-detail", "vet-anesthesia-machine"),
   page("veterinary-bronchoscope-rhinoscope", "/products/veterinary/veterinary-bronchoscope-rhinoscope/", "product-category", "veterinary"),
   page("cgv-m", "/products/veterinary/veterinary-bronchoscope-rhinoscope/cgv-m/", "product-detail", "veterinary-bronchoscope-rhinoscope"),
@@ -106,6 +108,7 @@ export const missingSixLanguageRoutes = new Set([
   "/blog/veterinary-endoscopy-roi/",
   "/blog/veterinary-anesthesia-machine-buying-guide/",
   "/products/veterinary/vet-anesthesia-machine/",
+  "/products/veterinary/vet-anesthesia-machine/cgvet-a220t/",
   "/products/veterinary/vet-anesthesia-machine/cgvet-30/",
   "/products/veterinary/x-ray-system/cgv-dr07/",
   "/products/ultrasound/portable-color-ultrasound/",
@@ -172,23 +175,22 @@ export function exactPublishedAlternates(pageKey) {
   return alternates;
 }
 
-export const knownRouteAnomalies = Object.freeze([
+export const resolvedRouteDecisions = Object.freeze([
   {
-    id: "convex-transvaginal-category-canonical-collision",
-    severity: "blocking",
+    id: "convex-transvaginal-independent-category",
     route: "/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/",
-    detail: "Six localized versions are indexed, but the English physical page canonical points to /convex-scanner/ and has no independent sitemap entry.",
+    detail: "Retained as an independent CGU-03 category; CGU-C remains under the separate convex-scanner category.",
   },
   {
-    id: "cgvet-a220t-orphan",
-    severity: "review",
+    id: "cgvet-a220t-canonical-product",
     route: "/products/veterinary/vet-anesthesia-machine/cgvet-a220t/",
-    detail: "English page is self-canonical but absent from the canonical 74-page sitemap and has no localized mapping.",
+    detail: "Retained as an independent canonical product because it is published in the category, global product menu and dedicated product page. Inventory availability is not inferred.",
   },
   {
-    id: "portable-color-legacy-mirrors",
-    severity: "review",
+    id: "portable-color-canonical-route",
     route: "/products/ultrasound/medical/portable-color-ultrasound/",
-    detail: "Legacy physical category and CG-P31 files canonicalize to the current /products/ultrasound/portable-color-ultrasound/ routes.",
+    detail: "Legacy physical mirrors were removed; permanent redirects continue to target /products/ultrasound/portable-color-ultrasound/.",
   },
 ]);
+
+export const knownRouteAnomalies = Object.freeze([]);

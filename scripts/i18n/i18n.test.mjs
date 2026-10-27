@@ -11,11 +11,14 @@ import {
 import { renderHreflang, renderLanguageMenu, runGeneration, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
 import { assertProtectedTechnicalContent, compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
 
-test("page map has the approved Phase 0 scope", () => {
-  assert.equal(pageDefinitions.length, 74);
-  assert.equal(missingSixLanguageRoutes.size, 14);
+test("page map includes the Phase 1A canonical decisions", () => {
+  assert.equal(pageDefinitions.length, 76);
+  assert.equal(missingSixLanguageRoutes.size, 15);
   assert.equal(pageDefinitions.filter(({ type }) => type === "blog-article").length, 9);
   assert.equal(pageDefinitions.filter(({ route }) => route.startsWith("/applications/")).length, 0);
+  assert.equal(translationStatus("convex-transvaginal-scanner", "es"), "published");
+  assert.equal(resolveLanguageTarget("cgu-03", "en").pageKey, "cgu-03");
+  assert.equal(resolveLanguageTarget("cgvet-a220t", "es").pageKey, "veterinary");
 });
 
 test("FR and PT-BR stay planned and disabled", () => {
@@ -77,9 +80,12 @@ test("terminology exists for all nine languages", () => {
   for (const terms of Object.values(terminology)) assert.equal(Object.keys(terms).length, 12);
 });
 
-test("write mode stops before touching files while route and template blockers remain", () => {
-  assert.throws(
-    () => runGeneration({ root: process.cwd(), write: true }),
-    /Write mode blocked before any file changes/,
-  );
+test("repository generation remains a dry-run during Phase 1A", () => {
+  const report = runGeneration({ root: process.cwd(), write: false });
+  assert.equal(report.mode, "dry-run");
+  assert.equal(report.canonicalPages, 76);
+  assert.equal(report.publishedDocuments, 442);
+  assert.equal(report.plannedDocuments, 152);
+  assert.deepEqual(report.missingLanguageMenus, []);
+  assert.deepEqual(report.sitemapPreservedUnmappedUrls, []);
 });

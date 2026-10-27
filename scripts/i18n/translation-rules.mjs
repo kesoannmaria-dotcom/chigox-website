@@ -67,9 +67,11 @@ const immutablePatterns = [
   /\b(?:BD|CG[A-Z]*)-[A-Z0-9]+(?:-[A-Z0-9]+)*(?:\s+Pro|\s+Series)?\b/g,
   /\b(?:HD|Full HD|4K|1080P|720P)\b/gi,
   /\b(?:CE|FDA|ISO\s?\d{4,5}|IEC\s?\d{4,5}(?:-\d+)*)\b/g,
-  /\b\d+(?:\.\d+)?\s?(?:mm|cm|m|kg|g|MHz|Hz|kHz|V|W|mAh|°|degrees?|pixels?)\b/gi,
+  /\b\d+(?:\.\d+)?\s?(?:mm|cm|m|kg|g|MHz|Hz|kHz|V|W|mAh|°|pixels?)\b/gi,
   /\b\d+(?:\.\d+)?\s?[×x]\s?\d+(?:\.\d+)?(?:\s?[×x]\s?\d+(?:\.\d+)?)?\s?(?:mm|cm|pixels?)?\b/gi,
 ];
+
+export const immutableTranslationPatterns = Object.freeze(immutablePatterns);
 
 export function extractProtectedTechnicalTokens(value) {
   const tokens = [];

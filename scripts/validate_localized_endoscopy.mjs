@@ -3,6 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const languages = ["es", "tr", "de", "it", "pl", "ko"];
+const newCoreLanguages = ["fr", "pt"];
 const categories = {
   "endoscope-system": ["cge-100"],
   bronchoscope: ["cgb-600r", "disposable-flexible-bronchoscope"],
@@ -21,8 +22,8 @@ const assert = (condition, message) => { if (!condition) errors.push(message); }
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const exists = (file) => fs.existsSync(path.join(root, file));
 const localizedUrl = (lang, route) => `https://www.chigox.com/${lang ? `${lang}/` : ""}${route}/`;
-const alternateCodes = ["en", ...languages, "x-default"];
-const expectedAlternates = (route) => Object.fromEntries(alternateCodes.map((code) => [code, localizedUrl(code === "en" || code === "x-default" ? "" : code, route)]));
+const alternateCodes = ["en", ...languages, "fr", "pt-BR", "x-default"];
+const expectedAlternates = (route) => Object.fromEntries(alternateCodes.map((code) => [code, localizedUrl(code === "en" || code === "x-default" ? "" : code === "pt-BR" ? "pt" : code, route)]));
 const forbiddenEnglishCopy = [
   "CGE-100 is a Full HD 1080P medical endoscopy platform",
   "The system consists of a video processor",
@@ -57,7 +58,7 @@ for (const lang of languages) {
     const expectedCanonical = localizedUrl(lang, route);
     assert(html.includes(`<link rel="canonical" href="${expectedCanonical}">`), `${file}: incorrect canonical`);
     const alternates = [...html.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)];
-    assert(alternates.length === 8, `${file}: expected 8 hreflang links, found ${alternates.length}`);
+    assert(alternates.length === alternateCodes.length, `${file}: expected ${alternateCodes.length} hreflang links, found ${alternates.length}`);
     for (const [code, url] of Object.entries(expectedAlternates(route))) {
       assert(alternates.some((match) => match[1] === code && match[2] === url), `${file}: incorrect hreflang ${code}`);
     }
@@ -103,7 +104,7 @@ for (const route of routes) {
   const html = read(file);
   assert(html.includes(`<link rel="canonical" href="${localizedUrl("", route)}">`), `${file}: incorrect canonical`);
   const alternates = [...html.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)];
-  assert(alternates.length === 8, `${file}: expected 8 hreflang links, found ${alternates.length}`);
+  assert(alternates.length === alternateCodes.length, `${file}: expected ${alternateCodes.length} hreflang links, found ${alternates.length}`);
   for (const [code, url] of Object.entries(expectedAlternates(route))) {
     assert(alternates.some((match) => match[1] === code && match[2] === url), `${file}: incorrect hreflang ${code}`);
   }
@@ -112,7 +113,7 @@ for (const route of routes) {
 const sitemap = read("sitemap.xml");
 const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
 assert(new Set(sitemapUrls).size === sitemapUrls.length, "sitemap: duplicate URLs detected");
-for (const lang of ["", ...languages]) {
+for (const lang of ["", ...languages, ...newCoreLanguages]) {
   for (const route of routes) {
     const url = localizedUrl(lang, route);
     assert(sitemapUrls.filter((candidate) => candidate === url).length === 1, `sitemap: expected exactly one ${url}`);

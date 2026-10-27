@@ -3,16 +3,19 @@ import path from "node:path";
 import {
   SITE_ORIGIN,
   absoluteUrl,
-  activeLanguageKeys,
+  corePageDefinitions,
   knownRouteAnomalies,
   languages,
   localizedLanguageKeys,
   missingSixLanguageRoutes,
   pageDefinitions,
+  publishedLanguageKeys,
   resolvedRouteDecisions,
   translationStatus,
 } from "./page-map.mjs";
 import { collectPublishedDocuments, fileFor, runGeneration } from "./generate-language-metadata.mjs";
+import { collectCoreSourceStrings, generateCoreLocales } from "./core-localization.mjs";
+import { compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
 
 const root = process.cwd();
 const errors = [];
@@ -34,7 +37,7 @@ for (const definition of pageDefinitions) {
 
 const { documents, missingFiles } = collectPublishedDocuments(root);
 assert(missingFiles.length === 0, `published files missing:\n${missingFiles.join("\n")}`);
-assert(documents.length === 442, `published canonical documents: expected 442, found ${documents.length}`);
+assert(documents.length === 576, `published canonical documents: expected 576, found ${documents.length}`);
 
 for (const document of documents) {
   const html = read(document.relativeFile);
@@ -52,15 +55,23 @@ for (const document of documents) {
   assert(sitemapSet.has(expected), `sitemap: missing ${expected}`);
 }
 
-const mappedUrls = new Set(pageDefinitions.flatMap((definition) => activeLanguageKeys
+const mappedUrls = new Set(pageDefinitions.flatMap((definition) => publishedLanguageKeys
   .filter((languageKey) => translationStatus(definition.key, languageKey) === "published")
   .map((languageKey) => absoluteUrl(languageKey, definition.route))));
 const unmappedSitemapUrls = sitemapUrls.filter((url) => !mappedUrls.has(url));
 assert(unmappedSitemapUrls.length === 0, `sitemap: expected no unmapped routes, found ${unmappedSitemapUrls.length}`);
 
 for (const languageKey of ["fr", "pt"]) {
-  assert(!fs.existsSync(path.join(root, languages[languageKey].prefix)), `${languageKey}: planned language directory must not exist in Phase 0`);
-  assert(!sitemapUrls.some((url) => url.startsWith(`${SITE_ORIGIN}/${languages[languageKey].prefix}/`)), `${languageKey}: planned language must not be in sitemap`);
+  assert(fs.existsSync(path.join(root, languages[languageKey].prefix)), `${languageKey}: core language directory is missing`);
+  for (const definition of corePageDefinitions) {
+    const relativeFile = fileFor(languageKey, definition.route);
+    assert(fs.existsSync(path.join(root, relativeFile)), `${languageKey}: missing core page ${relativeFile}`);
+    assert(sitemapSet.has(absoluteUrl(languageKey, definition.route)), `${languageKey}: sitemap missing ${definition.route}`);
+  }
+  for (const definition of pageDefinitions.filter(({ type }) => type === "blog-article")) {
+    assert(!fs.existsSync(path.join(root, fileFor(languageKey, definition.route))), `${languageKey}: Blog article must remain ungenerated (${definition.route})`);
+    assert(!sitemapSet.has(absoluteUrl(languageKey, definition.route)), `${languageKey}: ungenerated Blog article must not appear in sitemap (${definition.route})`);
+  }
 }
 
 const allHtml = [];
@@ -80,15 +91,24 @@ for (const relativeFile of allHtml) {
   const html = read(relativeFile);
   if (html.includes('class="language-menu"')) {
     languageMenuCount += 1;
-    assert(!/<a href="\/(?:fr|pt)\//.test(html), `${relativeFile}: FR/PT must remain unavailable`);
-    const plannedAnchors = html.match(/data-language-coming-soon="true"/g) ?? [];
+    const languageMenu = html.match(/<details class="language-menu">[\s\S]*?<\/details>/)?.[0] ?? "";
+    assert(!/<a href="\/(?:fr|pt)\//.test(languageMenu), `${relativeFile}: FR/PT must remain unavailable`);
+    const plannedAnchors = languageMenu.match(/data-language-coming-soon="true"/g) ?? [];
     assert(plannedAnchors.length === 2, `${relativeFile}: expected hidden FR/PT placeholders`);
   }
 
   const canonical = html.match(/<link rel="canonical" href="([^"]+)">/)?.[1];
   const alternates = [...html.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)];
   if (alternates.length) hreflangPageCount += 1;
-  assert(!alternates.some((match) => match[1] === "fr" || match[1] === "pt" || match[1] === "pt-BR"), `${relativeFile}: FR/PT hreflang must not be emitted before launch`);
+  assert(!alternates.some((match) => match[1] === "pt"), `${relativeFile}: Brazilian Portuguese hreflang must use pt-BR`);
+
+  const canonicalDefinition = canonical
+    ? corePageDefinitions.find((definition) => publishedLanguageKeys.some((languageKey) => absoluteUrl(languageKey, definition.route) === canonical))
+    : null;
+  if (canonicalDefinition) {
+    assert(alternates.some((match) => match[1] === "fr" && match[2] === absoluteUrl("fr", canonicalDefinition.route)), `${relativeFile}: French hreflang missing`);
+    assert(alternates.some((match) => match[1] === "pt-BR" && match[2] === absoluteUrl("pt", canonicalDefinition.route)), `${relativeFile}: pt-BR hreflang missing`);
+  }
 
   if (canonical && alternates.length) {
     for (const alternate of alternates) {
@@ -106,7 +126,7 @@ for (const relativeFile of allHtml) {
 }
 
 assert(languageMenuCount === allHtml.length, `language menu regression: expected all ${allHtml.length} pages, found ${languageMenuCount}`);
-assert(hreflangPageCount === 119, `hreflang regression: expected 119 current pages, found ${hreflangPageCount}`);
+assert(hreflangPageCount === 567, `hreflang regression: expected 567 core pages, found ${hreflangPageCount}`);
 assert(localizedLanguageKeys.every((languageKey) => missingSixLanguageRoutes.size === 15), "six-language missing-route baseline changed");
 
 const redirects = read("_redirects");
@@ -133,9 +153,35 @@ for (const definition of pageDefinitions.filter(({ type }) => type === "blog-ind
 }
 
 const generation = runGeneration({ root, write: false });
-assert(generation.plannedDocuments === 152, `FR/PT plan: expected 152 documents, found ${generation.plannedDocuments}`);
-assert(generation.sitemapMappedUrls === 442, `sitemap generator: expected 442 mapped URLs, found ${generation.sitemapMappedUrls}`);
+assert(generation.plannedDocuments === 18, `FR/PT Blog plan: expected 18 documents, found ${generation.plannedDocuments}`);
+assert(generation.sitemapMappedUrls === 576, `sitemap generator: expected 576 mapped URLs, found ${generation.sitemapMappedUrls}`);
 assert(generation.sitemapPreservedUnmappedUrls.length === 0, "sitemap generator: unresolved URLs remain outside the page map");
+assert(generation.changedDocuments === 0, `metadata generator: expected deterministic output, found ${generation.changedDocuments} changes`);
+
+const sourceStrings = collectCoreSourceStrings(root);
+const translationReview = {};
+for (const languageKey of ["fr", "pt"]) {
+  const catalog = JSON.parse(read(`scripts/i18n/translations/core-${languageKey}.json`));
+  assert(Object.keys(catalog).length === sourceStrings.length, `${languageKey}: translation catalog size mismatch`);
+  for (const source of sourceStrings) {
+    const translation = catalog[source];
+    assert(Boolean(translation), `${languageKey}: missing translation for ${source}`);
+    if (!translation) continue;
+    const technical = compareProtectedTechnicalContent(source, translation);
+    assert(!technical.missing.length && !technical.unexpected.length, `${languageKey}: protected technical content changed for ${source}`);
+    assert(!/ZXQTECH|CHIGOX-\d{4}/i.test(translation), `${languageKey}: translation placeholder leaked for ${source}`);
+  }
+  for (const key of Object.keys(terminology.en)) {
+    assert(catalog[terminology.en[key]] === terminology[languageKey][key], `${languageKey}: approved terminology mismatch for ${key}`);
+  }
+  translationReview[languageKey] = Object.entries(catalog)
+    .filter(([source, translation]) => source === translation && /[a-z]{3}/i.test(source))
+    .map(([source]) => source);
+}
+
+const localizedGeneration = generateCoreLocales({ root, write: false });
+assert(localizedGeneration.languages.fr.changed === 0, "fr: core page generation is not deterministic");
+assert(localizedGeneration.languages.pt.changed === 0, "pt: core page generation is not deterministic");
 
 for (const anomaly of knownRouteAnomalies) warnings.push(`${anomaly.severity}: ${anomaly.id} - ${anomaly.detail}`);
 for (const file of generation.missingLanguageMenus) warnings.push(`template-gap: ${file} has no language selector to update`);
@@ -146,10 +192,12 @@ const report = {
   currentSitemapUrls: sitemapUrls.length,
   preservedUnmappedSitemapUrls: unmappedSitemapUrls,
   missingSixLanguagePages: localizedLanguageKeys.length * missingSixLanguageRoutes.size,
-  plannedFrenchPortuguesePages: 152,
+  publishedFrenchPortugueseCorePages: 134,
+  plannedFrenchPortugueseBlogArticles: 18,
   currentLanguageMenus: languageMenuCount,
   currentHreflangPages: hreflangPageCount,
   generatorDryRunChanges: generation.changedDocuments,
+  translationReview,
   templateGaps: generation.missingLanguageMenus,
   resolvedRouteDecisions,
   warnings,
@@ -161,4 +209,4 @@ if (errors.length) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-console.log("CHIGOX Phase 1A i18n validation passed.");
+console.log("CHIGOX Phase 1B-1 i18n validation passed.");

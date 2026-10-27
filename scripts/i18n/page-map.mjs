@@ -15,6 +15,7 @@ export const languages = Object.freeze({
 export const activeLanguageKeys = Object.freeze(["en", "es", "tr", "de", "it", "pl", "ko"]);
 export const plannedLanguageKeys = Object.freeze(["fr", "pt"]);
 export const localizedLanguageKeys = Object.freeze(["es", "tr", "de", "it", "pl", "ko"]);
+export const publishedLanguageKeys = Object.freeze([...activeLanguageKeys, ...plannedLanguageKeys]);
 
 const page = (key, route, type, parentKey = null) => ({ key, route, type, parentKey });
 
@@ -97,6 +98,8 @@ export const pageDefinitions = Object.freeze([
   page("cgr-100", "/products/endoscopy-system/rigid-endoscope/cgr-100/", "product-detail", "rigid-endoscope"),
 ]);
 
+export const corePageDefinitions = Object.freeze(pageDefinitions.filter(({ type }) => type !== "blog-article"));
+
 export const missingSixLanguageRoutes = new Set([
   "/blog/convex-transvaginal-ultrasound-buying-guide/",
   "/blog/rigid-endoscope-buying-guide/",
@@ -135,7 +138,7 @@ export function translationStatus(pageKey, languageKey) {
   if (!definition) throw new Error(`Unknown page: ${pageKey}`);
   if (!language) throw new Error(`Unknown language: ${languageKey}`);
   if (languageKey === "en") return "published";
-  if (plannedLanguageKeys.includes(languageKey)) return "planned";
+  if (plannedLanguageKeys.includes(languageKey)) return definition.type === "blog-article" ? "planned" : "published";
   return missingSixLanguageRoutes.has(definition.route) ? "missing" : "published";
 }
 
@@ -163,7 +166,7 @@ export function resolveLanguageTarget(pageKey, languageKey) {
 }
 
 export function exactPublishedAlternates(pageKey) {
-  const alternates = activeLanguageKeys
+  const alternates = publishedLanguageKeys
     .filter((languageKey) => translationStatus(pageKey, languageKey) === "published")
     .map((languageKey) => ({
       languageKey,

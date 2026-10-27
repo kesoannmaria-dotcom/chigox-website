@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   exactPublishedAlternates,
+  corePageDefinitions,
   languages,
   missingSixLanguageRoutes,
   pageDefinitions,
@@ -9,6 +10,7 @@ import {
   translationStatus,
 } from "./page-map.mjs";
 import { renderHreflang, renderLanguageMenu, runGeneration, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
+import { collectCoreSourceStrings, generateCoreLocales } from "./core-localization.mjs";
 import { assertProtectedTechnicalContent, compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
 
 test("page map includes the Phase 1A canonical decisions", () => {
@@ -21,11 +23,12 @@ test("page map includes the Phase 1A canonical decisions", () => {
   assert.equal(resolveLanguageTarget("cgvet-a220t", "es").pageKey, "veterinary");
 });
 
-test("FR and PT-BR stay planned and disabled", () => {
+test("FR and PT-BR core sites are published while their menu entries stay disabled", () => {
   assert.equal(languages.fr.enabled, false);
   assert.equal(languages.pt.enabled, false);
   assert.equal(languages.pt.code, "pt-BR");
-  assert.equal(translationStatus("home", "fr"), "planned");
+  assert.equal(translationStatus("home", "fr"), "published");
+  assert.equal(translationStatus("blog-rigid-endoscope-guide", "fr"), "planned");
   assert.equal(resolveLanguageTarget("home", "pt").kind, "disabled");
 });
 
@@ -42,9 +45,9 @@ test("missing translations use a safe category fallback", () => {
 
 test("hreflang contains exact translations only, never fallback pages", () => {
   const missingAlternates = exactPublishedAlternates("cgvet-30");
-  assert.deepEqual(missingAlternates.map(({ hreflang }) => hreflang), ["en", "x-default"]);
+  assert.deepEqual(missingAlternates.map(({ hreflang }) => hreflang), ["en", "fr", "pt-BR", "x-default"]);
   const completeAlternates = exactPublishedAlternates("cge-100");
-  assert.deepEqual(completeAlternates.map(({ hreflang }) => hreflang), ["en", "es", "tr", "de", "it", "pl", "ko", "x-default"]);
+  assert.deepEqual(completeAlternates.map(({ hreflang }) => hreflang), ["en", "es", "tr", "de", "it", "pl", "ko", "fr", "pt-BR", "x-default"]);
 });
 
 test("language menu keeps FR/PT hidden and marks safe fallbacks", () => {
@@ -59,7 +62,7 @@ test("metadata updates are deterministic", () => {
   const once = updateHreflang(source, "home");
   const twice = updateHreflang(once, "home");
   assert.equal(once, twice);
-  assert.equal((renderHreflang("home").match(/hreflang=/g) ?? []).length, 8);
+  assert.equal((renderHreflang("home").match(/hreflang=/g) ?? []).length, 10);
   const menu = updateLanguageMenu(once, "home", "en");
   assert.equal(menu.updated, true);
   assert.match(menu.html, /aria-current="true"/);
@@ -80,12 +83,23 @@ test("terminology exists for all nine languages", () => {
   for (const terms of Object.values(terminology)) assert.equal(Object.keys(terms).length, 12);
 });
 
-test("repository generation remains a dry-run during Phase 1A", () => {
+test("Phase 1B metadata generation is deterministic", () => {
   const report = runGeneration({ root: process.cwd(), write: false });
   assert.equal(report.mode, "dry-run");
   assert.equal(report.canonicalPages, 76);
-  assert.equal(report.publishedDocuments, 442);
-  assert.equal(report.plannedDocuments, 152);
+  assert.equal(report.publishedDocuments, 576);
+  assert.equal(report.plannedDocuments, 18);
+  assert.equal(report.changedDocuments, 0);
   assert.deepEqual(report.missingLanguageMenus, []);
   assert.deepEqual(report.sitemapPreservedUnmappedUrls, []);
+});
+
+test("FR and PT-BR core generation is complete and deterministic", () => {
+  assert.equal(corePageDefinitions.length, 67);
+  assert.equal(collectCoreSourceStrings(process.cwd()).length, 1620);
+  const report = generateCoreLocales({ root: process.cwd(), write: false });
+  assert.equal(report.languages.fr.pages, 67);
+  assert.equal(report.languages.pt.pages, 67);
+  assert.equal(report.languages.fr.changed, 0);
+  assert.equal(report.languages.pt.changed, 0);
 });

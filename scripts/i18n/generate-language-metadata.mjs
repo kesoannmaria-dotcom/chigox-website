@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   absoluteUrl,
-  activeLanguageKeys,
   exactPublishedAlternates,
   languages,
   localizedPath,
   pageDefinitions,
   plannedLanguageKeys,
+  publishedLanguageKeys,
   resolveLanguageTarget,
   translationStatus,
 } from "./page-map.mjs";
@@ -66,7 +66,7 @@ export function collectPublishedDocuments(root) {
   const documents = [];
   const missingFiles = [];
   for (const definition of pageDefinitions) {
-    for (const languageKey of activeLanguageKeys) {
+    for (const languageKey of publishedLanguageKeys) {
       if (translationStatus(definition.key, languageKey) !== "published") continue;
       const relativeFile = fileFor(languageKey, definition.route);
       const absoluteFile = path.join(root, relativeFile);
@@ -85,7 +85,7 @@ export function updateSitemapPreservingUnmapped(root) {
   const current = fs.readFileSync(sitemapFile, "utf8");
   const blocks = [...current.matchAll(/\s*<url>[\s\S]*?<\/url>/g)].map((match) => match[0].trim());
   const blockByUrl = new Map(blocks.map((block) => [block.match(/<loc>([^<]+)<\/loc>/)?.[1], block]));
-  const mappedUrls = pageDefinitions.flatMap((definition) => activeLanguageKeys
+  const mappedUrls = pageDefinitions.flatMap((definition) => publishedLanguageKeys
     .filter((languageKey) => translationStatus(definition.key, languageKey) === "published")
     .map((languageKey) => absoluteUrl(languageKey, definition.route)));
   const mappedSet = new Set(mappedUrls);
@@ -115,8 +115,10 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
     if (!original.includes(`<link rel="canonical" href="${expectedCanonical}">`)) {
       throw new Error(`${document.relativeFile}: canonical does not match page-map (${expectedCanonical})`);
     }
-    let next = updateHreflang(original, document.definition.key);
-    const menuResult = updateLanguageMenu(next, document.definition.key, document.languageKey);
+    let next = document.definition.type === "blog-article" ? original : updateHreflang(original, document.definition.key);
+    const menuResult = document.definition.type === "blog-article"
+      ? { html: next, updated: /<details class="language-menu">[\s\S]*?<\/details>/.test(next) }
+      : updateLanguageMenu(next, document.definition.key, document.languageKey);
     next = menuResult.html;
     if (!menuResult.updated) missingLanguageMenus.push(document.relativeFile);
     if (next !== original) {
@@ -148,7 +150,7 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
     sitemapChanged: sitemap.html !== currentSitemap,
     sitemapMappedUrls: sitemap.mappedCount,
     sitemapPreservedUnmappedUrls: sitemap.unmappedUrls,
-    plannedDocuments: plannedLanguageKeys.length * pageDefinitions.length,
+    plannedDocuments: plannedLanguageKeys.reduce((count, languageKey) => count + pageDefinitions.filter((definition) => translationStatus(definition.key, languageKey) === "planned").length, 0),
   };
 }
 

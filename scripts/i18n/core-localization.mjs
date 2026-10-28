@@ -10,6 +10,17 @@ import {
 } from "./page-map.mjs";
 import { fileFor, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
 import { extractProtectedTechnicalTokens } from "./translation-rules.mjs";
+import { curateBlogCatalog } from "./blog-curated-overrides.mjs";
+
+function isBlogDefinition(definition) {
+  return definition.type === "blog-index" || definition.type === "blog-article";
+}
+
+function loadBlogCatalog(root, languageKey) {
+  const file = path.join(root, "scripts", "i18n", "translations", `blog-${languageKey}.json`);
+  if (!fs.existsSync(file)) throw new Error(`Missing Blog translation catalog: ${file}`);
+  return curateBlogCatalog(JSON.parse(fs.readFileSync(file, "utf8")), languageKey);
+}
 
 const TRANSLATABLE_ATTRIBUTES = new Set(["alt", "aria-label", "placeholder", "title", "value"]);
 const TRANSLATABLE_META = new Set(["description", "og:title", "og:description", "twitter:title", "twitter:description"]);
@@ -214,9 +225,11 @@ export function generateCoreLocales({ root = process.cwd(), write = false } = {}
   for (const languageKey of ["fr", "pt"]) {
     const catalogFile = path.join(root, "scripts", "i18n", "translations", `core-${languageKey}.json`);
     if (!fs.existsSync(catalogFile)) throw new Error(`Missing translation catalog: ${catalogFile}`);
-    const catalog = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
+    const coreCatalog = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
+    const blogCatalog = loadBlogCatalog(root, languageKey);
     const languageReport = { pages: 0, changed: 0, missingCatalogEntries: 0 };
     for (const definition of corePageDefinitions) {
+      const catalog = isBlogDefinition(definition) ? { ...coreCatalog, ...blogCatalog } : coreCatalog;
       const sourceFile = path.join(root, sourceFileFor(definition.route));
       const targetRelative = fileFor(languageKey, definition.route);
       const targetFile = path.join(root, targetRelative);

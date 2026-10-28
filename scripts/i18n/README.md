@@ -14,6 +14,11 @@ This directory is the single source of truth for the nine-language rollout. Phas
 - `fetch-phase1c-translations.mjs`: development-only catalog builder for the six Phase 1C locales.
 - `translations/phase1c-*.json`: auditable Phase 1C catalogs for the six existing localized sites.
 - `phase1c-translation-overrides.mjs`: reviewed medical terminology and context-sensitive instrument terminology corrections.
+- `blog-localization.mjs`: the shared ten-page Blog definition set and dedicated eight-language catalog loader.
+- `fetch-blog-translations.mjs`: development-only complete-string Blog catalog builder. It never performs fragment-level word substitution.
+- `blog-curated-overrides.mjs`: reviewed whole-source-string corrections for medical terminology and natural phrasing.
+- `translations/blog-*.json`: auditable complete-string catalogs for eight localized Blog indexes and 72 article pages.
+- `validate-blog-locales.mjs`: Blog catalog completeness, mixed-language, structural and technical-value validation.
 - `translation-rules.mjs`: approved terminology and protection for models, specifications, units and certifications.
 - `validate-i18n.mjs`: repository, mapping, canonical, reciprocal hreflang, sitemap and rollout-boundary checks.
 - `validate-phase1c-locales.mjs`: six-language content, local link, asset, form, SEO and technical-token checks.
@@ -27,6 +32,7 @@ This directory is the single source of truth for the nine-language rollout. Phas
 4. Existing sitemap URLs outside the page map are preserved. They must be resolved explicitly instead of being silently removed.
 5. Translation must pass the protected technical-token check before a page can be marked published.
 6. Product models, specifications, certifications and claims must come from the English source. Translation may not invent or normalize them.
+7. Blog titles, summaries, paragraphs, SEO metadata, headings, alt text and CTAs are translated as complete source strings. Fragment-level vocabulary replacement is prohibited because it can create mixed-language titles and invalid medical phrasing.
 
 ## Commands
 
@@ -34,6 +40,7 @@ This directory is the single source of truth for the nine-language rollout. Phas
 node --test scripts/i18n/i18n.test.mjs
 node scripts/i18n/validate-i18n.mjs
 node scripts/i18n/validate-phase1c-locales.mjs
+node scripts/i18n/validate-blog-locales.mjs
 node scripts/i18n/generate-core-locales.mjs
 node scripts/i18n/generate-phase1c-locales.mjs
 node scripts/i18n/generate-language-metadata.mjs

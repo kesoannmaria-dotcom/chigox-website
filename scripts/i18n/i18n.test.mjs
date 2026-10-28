@@ -16,6 +16,7 @@ import { assertProtectedTechnicalContent, compareProtectedTechnicalContent, term
 import { applyBlogTranslationReview } from "./blog-translation-overrides.mjs";
 import { applyPhase1CTranslationReview } from "./phase1c-translation-overrides.mjs";
 import { generatePhase1CLocales } from "./generate-phase1c-locales.mjs";
+import { blogLanguageKeys, collectBlogSourceStrings, loadBlogCatalog } from "./blog-localization.mjs";
 
 test("page map includes the Phase 1A canonical decisions", () => {
   assert.equal(pageDefinitions.length, 76);
@@ -119,6 +120,20 @@ test("Phase 1C review normalizes medical-device terminology", () => {
   );
 });
 
+test("Blog catalogs translate complete strings and preserve reviewed terminology", () => {
+  const sources = collectBlogSourceStrings(process.cwd());
+  assert.equal(sources.length, 625);
+  for (const languageKey of blogLanguageKeys) {
+    const catalog = loadBlogCatalog(process.cwd(), languageKey);
+    assert.equal(Object.keys(catalog).length, sources.length);
+    assert.ok(sources.every((source) => catalog[source]));
+  }
+  const polish = loadBlogCatalog(process.cwd(), "pl");
+  assert.equal(polish["Buyer Guide"], "Przewodnik kupującego");
+  assert.match(polish["Portable Veterinary Ultrasound: What Distributors Need to Know Before Importing"], /ultrasonograf weterynaryjny/i);
+  assert.doesNotMatch(polish["Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array — Buyer Selection Guide"], /Faza Array|Wypukła/i);
+});
+
 test("Phase 1B metadata generation is deterministic", () => {
   const report = runGeneration({ root: process.cwd(), write: false });
   assert.equal(report.mode, "dry-run");
@@ -135,6 +150,7 @@ test("Phase 1C six-language generation is complete and deterministic", () => {
   assert.equal(report.routes, 15);
   for (const languageKey of ["es", "tr", "de", "it", "pl", "ko"]) {
     assert.equal(report.languages[languageKey].generatedPages, 15);
+    assert.equal(report.languages[languageKey].blogIndexPages, 1);
     assert.equal(report.languages[languageKey].changedPages, 0);
     assert.equal(report.languages[languageKey].localizedExistingLinks, 0);
   }

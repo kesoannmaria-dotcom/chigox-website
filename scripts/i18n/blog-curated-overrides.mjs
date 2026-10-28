@@ -1,0 +1,98 @@
+import { blogTranslationOverrides } from "./blog-translation-overrides.mjs";
+
+const rigidSpecificationSource = "The CGR-100 table lists outer diameters from 1.8 mm to 10 mm across the published models. Working lengths include 100 mm, 175 mm, 300 mm and 320 mm depending on the model. Listed view directions include 0 degree, 30 degree and 70 degree options, while listed field of view values include 70 degree and 80 degree.";
+
+export const blogCuratedOverrides = Object.freeze({
+  es: Object.freeze({
+    [rigidSpecificationSource]: "La tabla del CGR-100 indica diámetros exteriores de 1.8 mm a 10 mm según los modelos publicados. Las longitudes de trabajo incluyen 100 mm, 175 mm, 300 mm y 320 mm, según el modelo. Las direcciones de visión disponibles son de 0 grados, 30 grados y 70 grados, mientras que los campos de visión indicados son de 70 grados y 80 grados.",
+    "A CHIGOX buyer guide to linear, convex and phased array handheld ultrasound probe types.": "Guía CHIGOX para comparar sondas de ecografía portátil lineales, convexas y de matriz faseada.",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array — Buyer Selection Guide": "Tipos de sondas de ecografía portátil: lineal, convexa y matriz faseada — Guía de selección",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array | CHIGOX": "Tipos de sondas de ecografía portátil: lineal, convexa y matriz faseada | CHIGOX",
+    "What is the difference between linear, convex and phased array ultrasound probes?": "¿Cuál es la diferencia entre las sondas ecográficas lineales, convexas y de matriz faseada?",
+  }),
+  tr: Object.freeze({
+    [rigidSpecificationSource]: "CGR-100 tablosunda yayımlanan modellere göre 1.8 mm ile 10 mm arasında dış çaplar yer alır. Çalışma uzunlukları modele bağlı olarak 100 mm, 175 mm, 300 mm ve 320 mm'dir. Belirtilen görüş yönleri 0 derece, 30 derece ve 70 derece; görüş alanı değerleri ise 70 derece ve 80 derecedir.",
+    "The": "Bu",
+    "A CHIGOX buyer guide to linear, convex and phased array handheld ultrasound probe types.": "Lineer, konveks ve faz dizilimli el tipi ultrason problarını karşılaştırmaya yönelik CHIGOX satın alma rehberi.",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array — Buyer Selection Guide": "El Tipi Ultrason Prob Türleri: Lineer, Konveks ve Faz Dizilimli — Satın Alma Rehberi",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array | CHIGOX": "El Tipi Ultrason Prob Türleri: Lineer, Konveks ve Faz Dizilimli | CHIGOX",
+    "What is the difference between linear, convex and phased array ultrasound probes?": "Lineer, konveks ve faz dizilimli ultrason probları arasındaki fark nedir?",
+  }),
+  de: Object.freeze({
+    [rigidSpecificationSource]: "Die CGR-100-Tabelle führt je nach veröffentlichtem Modell Außendurchmesser von 1.8 mm bis 10 mm auf. Die Arbeitslängen betragen je nach Modell 100 mm, 175 mm, 300 mm oder 320 mm. Als Blickrichtungen sind 0 Grad, 30 Grad und 70 Grad angegeben; die aufgeführten Sichtfelder betragen 70 Grad und 80 Grad.",
+    "Phased Array": "Phased-Array",
+    "Phased Array:": "Phased-Array:",
+  }),
+  it: Object.freeze({
+    [rigidSpecificationSource]: "La tabella del CGR-100 riporta diametri esterni da 1.8 mm a 10 mm, a seconda del modello pubblicato. Le lunghezze di lavoro disponibili sono 100 mm, 175 mm, 300 mm e 320 mm, in base al modello. Le direzioni di visione indicate sono 0 gradi, 30 gradi e 70 gradi, mentre i campi visivi indicati sono 70 gradi e 80 gradi.",
+    "Convex:": "Convessa:",
+    "Email CHIGOX": "Invia un'e-mail a CHIGOX",
+    "Email:": "E-mail:",
+    "Home": "Pagina iniziale",
+  }),
+  pl: Object.freeze({
+    [rigidSpecificationSource]: "Tabela CGR-100 podaje średnice zewnętrzne od 1.8 mm do 10 mm, zależnie od opublikowanego modelu. Długości robocze wynoszą 100 mm, 175 mm, 300 mm lub 320 mm, zależnie od modelu. Dostępne kierunki obserwacji to 0 stopni, 30 stopni i 70 stopni, a podane pola widzenia wynoszą 70 stopni i 80 stopni.",
+    "Convex:": "Konweksowa:",
+    "Email CHIGOX": "Napisz e-mail do CHIGOX",
+    "Email:": "E-mail:",
+    "A CHIGOX buyer guide to linear, convex and phased array handheld ultrasound probe types.": "Przewodnik CHIGOX po liniowych, konweksowych i fazowanych głowicach przenośnych ultrasonografów.",
+    "A practical guide for gynecology clinics, hospitals, distributors and importers planning handheld convex and transvaginal ultrasound configurations.": "Praktyczny przewodnik dla klinik ginekologicznych, szpitali, dystrybutorów i importerów planujących zakup przenośnego ultrasonografu z głowicą konweksową i dopochwową.",
+    "Buyer Guide": "Przewodnik kupującego",
+    "CHIGOX handheld ultrasound probe types buyer selection guide": "Przewodnik CHIGOX po wyborze głowic do przenośnych ultrasonografów",
+    "CHIGOX Handheld Ultrasound Probe Types guide": "Przewodnik CHIGOX po głowicach do przenośnych ultrasonografów",
+    "Compare linear, convex and phased array handheld ultrasound probe types before requesting a configuration review.": "Przed prośbą o dobór konfiguracji porównaj liniowe, konweksowe i fazowane głowice do przenośnych ultrasonografów.",
+    "Compare linear, convex and phased array handheld ultrasound probe types. Use this CHIGOX buyer guide to identify the configuration questions to confirm before requesting a quotation.": "Porównaj liniowe, konweksowe i fazowane głowice do przenośnych ultrasonografów. Ten przewodnik CHIGOX pomoże ustalić, jakie elementy konfiguracji należy potwierdzić przed zapytaniem ofertowym.",
+    "Convex": "Konweksowa",
+    "Convex probes": "Głowice konweksowe",
+    "Convex Transvaginal Scanner": "Ultrasonograf z głowicą konweksową i dopochwową",
+    "Convex Transvaginal Ultrasound Buying Guide": "Przewodnik zakupu ultrasonografu z głowicą konweksową i dopochwową",
+    "Convex Transvaginal Ultrasound Buying Guide | CHIGOX": "Przewodnik zakupu ultrasonografu z głowicą konweksową i dopochwową | CHIGOX",
+    "Convex transvaginal ultrasound buying guide for gynecology clinics hospitals and importers": "Przewodnik zakupu ultrasonografu z głowicą konweksową i dopochwową dla klinik ginekologicznych, szpitali i importerów",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array — Buyer Selection Guide": "Głowice do przenośnych ultrasonografów: liniowa, konweksowa i fazowana — przewodnik wyboru",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array | CHIGOX": "Głowice do przenośnych ultrasonografów: liniowa, konweksowa i fazowana | CHIGOX",
+    "Handheld ultrasound procurement checklist": "Lista kontrolna zakupu przenośnego ultrasonografu",
+    "How Distributors Should Position Portable Ultrasound": "Jak dystrybutorzy powinni pozycjonować przenośne ultrasonografy",
+    "Portable Veterinary Ultrasound: What Distributors Need to Know Before Importing": "Przenośny ultrasonograf weterynaryjny: co dystrybutor powinien wiedzieć przed importem",
+    "Portable veterinary ultrasound system for distributors and importers": "Przenośny ultrasonograf weterynaryjny dla dystrybutorów i importerów",
+    "Practical CHIGOX guides for veterinary endoscopy, ultrasound, distributor importing and medical equipment purchasing decisions.": "Praktyczne przewodniki CHIGOX dotyczące endoskopii weterynaryjnej, ultrasonografii, importu i zakupu sprzętu medycznego.",
+    "Should I choose a multi-format handheld ultrasound configuration?": "Czy warto wybrać przenośny ultrasonograf obsługujący kilka typów głowic?",
+    "Use this procurement checklist to compare handheld ultrasound configuration, documentation, connectivity and quotation scope before selecting a supplier.": "Przed wyborem dostawcy porównaj za pomocą tej listy konfigurację przenośnego ultrasonografu, dokumentację, łączność i zakres oferty.",
+    "Veterinary Anesthesia Machine Buying Guide for Clinics": "Przewodnik zakupu aparatu do znieczulenia weterynaryjnego dla klinik",
+    "Veterinary Anesthesia Machine Buying Guide for Clinics | CHIGOX": "Przewodnik zakupu aparatu do znieczulenia weterynaryjnego dla klinik | CHIGOX",
+    "Veterinary anesthesia machine buying guide for clinics and hospitals": "Przewodnik zakupu aparatu do znieczulenia weterynaryjnego dla klinik i szpitali",
+    "Veterinary endoscope system for small animal clinic gastrointestinal and airway examinations": "System endoskopowy do badań przewodu pokarmowego i dróg oddechowych w klinikach małych zwierząt",
+    "What is the difference between linear, convex and phased array ultrasound probes?": "Czym różnią się głowice ultrasonograficzne liniowe, konweksowe i fazowane?",
+    "What to Look for When Buying a Handheld Ultrasound Scanner": "Na co zwrócić uwagę przy zakupie przenośnego ultrasonografu",
+    "What to Look for When Buying a Handheld Ultrasound Scanner: A Clinic Procurement Checklist": "Na co zwrócić uwagę przy zakupie przenośnego ultrasonografu: lista kontrolna dla kliniki",
+    "Which ultrasound probe is most common for pet hospitals?": "Jaka głowica ultrasonograficzna jest najczęściej używana w klinikach weterynaryjnych?",
+    "Address: Building 321X666, 3rd Floor, No. 9, Kemulang South Road, Tianhe District, Guangzhou": "Adres: budynek 321X666, 3. piętro, nr 9, Kemulang South Road, dzielnica Tianhe, Guangzhou",
+    "Email": "E-mail",
+    "SEO Guide": "Poradnik zakupowy",
+  }),
+  ko: Object.freeze({
+    [rigidSpecificationSource]: "CGR-100 표에는 공개된 모델에 따라 1.8 mm부터 10 mm까지의 외경이 기재되어 있습니다. 작동 길이는 모델에 따라 100 mm, 175 mm, 300 mm 및 320 mm입니다. 기재된 관찰 방향은 0도, 30도 및 70도이며, 시야각은 70도 및 80도입니다.",
+    "Convex Transvaginal Ultrasound Buying Guide": "컨벡스·질식 초음파 구매 가이드",
+    "Convex Transvaginal Ultrasound Buying Guide | CHIGOX": "컨벡스·질식 초음파 구매 가이드 | CHIGOX",
+    "Rigid Endoscope Buying Guide for Hospitals": "병원용 경성 내시경 구매 가이드",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array — Buyer Selection Guide": "휴대용 초음파 프로브 종류: 선형, 컨벡스 및 위상 배열 — 구매자 선택 가이드",
+    "Handheld Ultrasound Probe Types: Linear vs Convex vs Phased Array | CHIGOX": "휴대용 초음파 프로브 종류: 선형, 컨벡스 및 위상 배열 | CHIGOX",
+    "Veterinary Anesthesia Machine Buying Guide for Clinics": "동물병원용 수의 마취기 구매 가이드",
+    "Veterinary Anesthesia Machine Buying Guide for Clinics | CHIGOX": "동물병원용 수의 마취기 구매 가이드 | CHIGOX",
+    "Veterinary anesthesia machine buying guide for clinics and hospitals": "동물병원과 수의 병원을 위한 수의 마취기 구매 가이드",
+  }),
+  fr: Object.freeze({
+    ...blogTranslationOverrides.fr,
+    [rigidSpecificationSource]: "Le tableau du CGR-100 indique des diamètres extérieurs compris entre 1.8 mm et 10 mm selon les modèles publiés. Les longueurs de travail disponibles sont de 100 mm, 175 mm, 300 mm et 320 mm selon le modèle. Les directions de visée proposées sont de 0 degré, 30 degrés et 70 degrés, avec des champs de vision de 70 degrés et 80 degrés.",
+    "Email CHIGOX": "Envoyer un e-mail à CHIGOX",
+  }),
+  pt: Object.freeze({
+    ...blogTranslationOverrides.pt,
+    [rigidSpecificationSource]: "A tabela do CGR-100 indica diâmetros externos de 1.8 mm a 10 mm entre os modelos publicados. Os comprimentos de trabalho disponíveis são 100 mm, 175 mm, 300 mm e 320 mm, conforme o modelo. As direções de visão disponíveis são 0 grau, 30 graus e 70 graus, com campos de visão de 70 graus e 80 graus.",
+    "Email CHIGOX": "Enviar e-mail para a CHIGOX",
+    "Email:": "E-mail:",
+  }),
+});
+
+export function curateBlogCatalog(catalog, languageKey) {
+  return { ...catalog, ...blogCuratedOverrides[languageKey] };
+}

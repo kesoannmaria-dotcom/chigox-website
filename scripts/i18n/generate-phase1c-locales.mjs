@@ -4,6 +4,7 @@ import {
   localizeMappedDocumentLinks,
   localizePageHtml,
 } from "./core-localization.mjs";
+import { blogDefinitions, loadBlogCatalog } from "./blog-localization.mjs";
 import { fileFor } from "./generate-language-metadata.mjs";
 import {
   localizedLanguageKeys,
@@ -12,6 +13,7 @@ import {
 } from "./page-map.mjs";
 
 const phase1CDefinitions = pageDefinitions.filter(({ route }) => phase1CRoutes.has(route));
+const blogIndexDefinition = blogDefinitions.find(({ type }) => type === "blog-index");
 
 function sourceFileFor(route) {
   return route === "/" ? "index.html" : `${route.slice(1)}index.html`;
@@ -56,16 +58,27 @@ export function generatePhase1CLocales({ root = process.cwd(), write = false } =
     const catalogFile = path.join(root, "scripts", "i18n", "translations", `phase1c-${languageKey}.json`);
     if (!fs.existsSync(catalogFile)) throw new Error(`Missing Phase 1C translation catalog: ${catalogFile}`);
     const catalog = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
+    const blogCatalog = loadBlogCatalog(root, languageKey);
     const expectedByFile = new Map();
     const languageReport = { generatedPages: 0, changedPages: 0, localizedExistingLinks: 0, missingCatalogEntries: 0 };
 
     for (const definition of phase1CDefinitions) {
       const sourceFile = path.join(root, sourceFileFor(definition.route));
       const targetRelative = fileFor(languageKey, definition.route);
-      const localized = localizePageHtml(fs.readFileSync(sourceFile, "utf8"), definition, languageKey, catalog);
+      const selectedCatalog = definition.type === "blog-article" ? { ...catalog, ...blogCatalog } : catalog;
+      const localized = localizePageHtml(fs.readFileSync(sourceFile, "utf8"), definition, languageKey, selectedCatalog);
       const expected = injectProductMenu(localized, root, languageKey, definition.route);
       expectedByFile.set(targetRelative, expected);
       languageReport.generatedPages += 1;
+    }
+
+    if (!blogIndexDefinition) throw new Error("Blog index definition not found");
+    {
+      const sourceFile = path.join(root, sourceFileFor(blogIndexDefinition.route));
+      const targetRelative = fileFor(languageKey, blogIndexDefinition.route);
+      const localized = localizePageHtml(fs.readFileSync(sourceFile, "utf8"), blogIndexDefinition, languageKey, blogCatalog);
+      expectedByFile.set(targetRelative, injectProductMenu(localized, root, languageKey, blogIndexDefinition.route));
+      languageReport.blogIndexPages = 1;
     }
 
     for (const definition of pageDefinitions) {

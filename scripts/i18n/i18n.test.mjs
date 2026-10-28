@@ -10,7 +10,15 @@ import {
   resolveLanguageTarget,
   translationStatus,
 } from "./page-map.mjs";
-import { renderHreflang, renderLanguageMenu, runGeneration, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
+import {
+  renderBlogNavigationLink,
+  renderHreflang,
+  renderLanguageMenu,
+  runGeneration,
+  updateBlogNavigation,
+  updateHreflang,
+  updateLanguageMenu,
+} from "./generate-language-metadata.mjs";
 import { collectCoreSourceStrings, generateCoreLocales } from "./core-localization.mjs";
 import { assertProtectedTechnicalContent, compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
 import { applyBlogTranslationReview } from "./blog-translation-overrides.mjs";
@@ -73,6 +81,18 @@ test("metadata updates are deterministic", () => {
   const menu = updateLanguageMenu(once, "home", "en");
   assert.equal(menu.updated, true);
   assert.match(menu.html, /aria-current="true"/);
+});
+
+test("localized Blog navigation is unique and placed before Contact", () => {
+  const definition = pageDefinitions.find(({ key }) => key === "blog-rigid-endoscope-guide");
+  const source = `<nav class="main-nav"><a href="/es/about-us/">Sobre nosotros</a>\n      <a href="/es/contact-us/">Contáctenos</a>\n      <a href="/es/blog/">Blog</a>\n      <details class="language-menu"><summary>Idioma</summary><div class="language-list"><a href="/es/blog/">Español</a></div></details></nav>`;
+  const result = updateBlogNavigation(source, definition, "es");
+  const beforeLanguageMenu = result.html.slice(0, result.html.indexOf('<details class="language-menu">'));
+  assert.equal((beforeLanguageMenu.match(/href="\/es\/blog\/"/g) ?? []).length, 1);
+  assert.ok(beforeLanguageMenu.indexOf('href="/es/about-us/"') < beforeLanguageMenu.indexOf('href="/es/blog/"'));
+  assert.ok(beforeLanguageMenu.indexOf('href="/es/blog/"') < beforeLanguageMenu.indexOf('href="/es/contact-us/"'));
+  assert.match(renderBlogNavigationLink(definition, "es"), /aria-current="page"/);
+  assert.equal(updateBlogNavigation(result.html, definition, "es").html, result.html);
 });
 
 test("technical specifications and model identifiers are protected", () => {
@@ -142,6 +162,7 @@ test("Phase 1B metadata generation is deterministic", () => {
   assert.equal(report.plannedDocuments, 0);
   assert.equal(report.changedDocuments, 0);
   assert.deepEqual(report.missingLanguageMenus, []);
+  assert.deepEqual(report.missingBlogNavigationAnchors, []);
   assert.deepEqual(report.sitemapPreservedUnmappedUrls, []);
 });
 

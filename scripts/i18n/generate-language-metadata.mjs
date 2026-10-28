@@ -62,6 +62,48 @@ export function updateLanguageMenu(html, pageKey, currentLanguageKey) {
   return { html: html.replace(pattern, renderLanguageMenu(pageKey, currentLanguageKey)), updated: true };
 }
 
+export function renderBlogNavigationLink(definition, languageKey) {
+  const current = definition.type === "blog-index" || definition.type === "blog-article"
+    ? " aria-current=\"page\""
+    : "";
+  return `<a href="${localizedPath(languageKey, "/blog/")}"${current}>Blog</a>`;
+}
+
+export function updateBlogNavigation(html, definition, languageKey) {
+  if (languageKey === "en") return { html, updated: false, skipped: true };
+
+  const navPattern = /<nav\b[^>]*class="[^"]*main-nav[^"]*"[^>]*>[\s\S]*?<\/nav>/;
+  const nav = html.match(navPattern)?.[0];
+  if (!nav) return { html, updated: false, reason: "main navigation not found" };
+
+  const languageMenuMarker = '<details class="language-menu">';
+  const languageMenuIndex = nav.indexOf(languageMenuMarker);
+  if (languageMenuIndex < 0) return { html, updated: false, reason: "language menu not found" };
+
+  const beforeLanguageMenu = nav.slice(0, languageMenuIndex);
+  const afterLanguageMenu = nav.slice(languageMenuIndex);
+  const blogPath = localizedPath(languageKey, "/blog/");
+  const contactPath = localizedPath(languageKey, "/contact-us/");
+  const escapePattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const blogAnchorPattern = new RegExp(`(?:\\n[ \\t]*)?<a\\b(?=[^>]*href="${escapePattern(blogPath)}")[^>]*>[\\s\\S]*?<\\/a>(?=\\n|[ \\t]*<|$)`, "g");
+  const contactAnchorPattern = new RegExp(`<a\\b(?=[^>]*href="${escapePattern(contactPath)}")[^>]*>[\\s\\S]*?<\\/a>`);
+  const withoutBlog = beforeLanguageMenu.replace(blogAnchorPattern, "");
+  const contactMatch = withoutBlog.match(contactAnchorPattern);
+  if (!contactMatch) return { html, updated: false, reason: "contact navigation link not found" };
+
+  const blogLink = renderBlogNavigationLink(definition, languageKey);
+  const beforeContact = withoutBlog.slice(0, contactMatch.index);
+  const indentation = beforeContact.match(/\n([ \t]*)$/)?.[1];
+  const separator = indentation === undefined ? "" : `\n${indentation}`;
+  const nextBeforeLanguageMenu = withoutBlog.replace(
+    contactAnchorPattern,
+    `${blogLink}${separator}${contactMatch[0]}`,
+  );
+  const nextNav = `${nextBeforeLanguageMenu}${afterLanguageMenu}`;
+  const next = html.replace(navPattern, nextNav);
+  return { html: next, updated: next !== html, skipped: false };
+}
+
 export function collectPublishedDocuments(root) {
   const documents = [];
   const missingFiles = [];
@@ -108,6 +150,7 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
 
   let changedDocuments = 0;
   const missingLanguageMenus = [];
+  const missingBlogNavigationAnchors = [];
   const pendingWrites = [];
   for (const document of documents) {
     const original = fs.readFileSync(document.absoluteFile, "utf8");
@@ -119,6 +162,11 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
     const menuResult = updateLanguageMenu(next, document.definition.key, document.languageKey);
     next = menuResult.html;
     if (!menuResult.updated) missingLanguageMenus.push(document.relativeFile);
+    const blogNavigationResult = updateBlogNavigation(next, document.definition, document.languageKey);
+    next = blogNavigationResult.html;
+    if (document.languageKey !== "en" && blogNavigationResult.reason) {
+      missingBlogNavigationAnchors.push(`${document.relativeFile}: ${blogNavigationResult.reason}`);
+    }
     if (next !== original) {
       changedDocuments += 1;
       pendingWrites.push({ file: document.absoluteFile, content: next });
@@ -127,9 +175,10 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
 
   const sitemap = updateSitemapPreservingUnmapped(root);
   const currentSitemap = fs.readFileSync(path.join(root, "sitemap.xml"), "utf8");
-  if (write && (missingLanguageMenus.length || sitemap.unmappedUrls.length)) {
+  if (write && (missingLanguageMenus.length || missingBlogNavigationAnchors.length || sitemap.unmappedUrls.length)) {
     const blockers = [
       missingLanguageMenus.length ? `${missingLanguageMenus.length} templates have no language selector` : null,
+      missingBlogNavigationAnchors.length ? `${missingBlogNavigationAnchors.length} templates cannot place Blog navigation` : null,
       sitemap.unmappedUrls.length ? `${sitemap.unmappedUrls.length} sitemap URLs are outside the canonical page map` : null,
     ].filter(Boolean).join("; ");
     throw new Error(`Write mode blocked before any file changes: ${blockers}`);
@@ -145,6 +194,7 @@ export function runGeneration({ root = process.cwd(), write = false } = {}) {
     publishedDocuments: documents.length,
     changedDocuments,
     missingLanguageMenus,
+    missingBlogNavigationAnchors,
     sitemapChanged: sitemap.html !== currentSitemap,
     sitemapMappedUrls: sitemap.mappedCount,
     sitemapPreservedUnmappedUrls: sitemap.unmappedUrls,

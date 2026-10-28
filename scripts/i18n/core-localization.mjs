@@ -8,7 +8,7 @@ import {
   localizedPath,
   pageByRoute,
 } from "./page-map.mjs";
-import { fileFor, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
+import { fileFor, updateBlogNavigation, updateHreflang, updateLanguageMenu } from "./generate-language-metadata.mjs";
 import { extractProtectedTechnicalTokens } from "./translation-rules.mjs";
 import { curateBlogCatalog } from "./blog-curated-overrides.mjs";
 
@@ -203,7 +203,9 @@ export function localizePageHtml(sourceHtml, definition, languageKey, catalog) {
   html = updateHreflang(html, definition.key);
   const menu = updateLanguageMenu(html, definition.key, languageKey);
   if (!menu.updated) throw new Error(`${languageKey}:${definition.route}: language selector not found`);
-  return menu.html;
+  const blogNavigation = updateBlogNavigation(menu.html, definition, languageKey);
+  if (blogNavigation.reason) throw new Error(`${languageKey}:${definition.route}: ${blogNavigation.reason}`);
+  return blogNavigation.html;
 }
 
 export function localizeMappedDocumentLinks(html, languageKey, sourceRoute) {

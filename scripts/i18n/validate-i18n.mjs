@@ -9,12 +9,14 @@ import {
   localizedLanguageKeys,
   missingSixLanguageRoutes,
   pageDefinitions,
+  phase1CRoutes,
   publishedLanguageKeys,
   resolvedRouteDecisions,
   translationStatus,
 } from "./page-map.mjs";
 import { collectPublishedDocuments, fileFor, runGeneration } from "./generate-language-metadata.mjs";
-import { collectCoreSourceStrings, generateCoreLocales } from "./core-localization.mjs";
+import { collectCoreSourceStrings, collectSourceStrings, generateCoreLocales } from "./core-localization.mjs";
+import { generatePhase1CLocales } from "./generate-phase1c-locales.mjs";
 import { compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
 
 const root = process.cwd();
@@ -22,6 +24,7 @@ const errors = [];
 const warnings = [];
 const assert = (condition, message) => { if (!condition) errors.push(message); };
 const read = (relativeFile) => fs.readFileSync(path.join(root, relativeFile), "utf8");
+const countLiteral = (value, token) => value.split(token).length - 1;
 
 const keys = pageDefinitions.map(({ key }) => key);
 const routes = pageDefinitions.map(({ route }) => route);
@@ -37,13 +40,17 @@ for (const definition of pageDefinitions) {
 
 const { documents, missingFiles } = collectPublishedDocuments(root);
 assert(missingFiles.length === 0, `published files missing:\n${missingFiles.join("\n")}`);
-assert(documents.length === 594, `published canonical documents: expected 594, found ${documents.length}`);
+assert(documents.length === 684, `published canonical documents: expected 684, found ${documents.length}`);
 
 for (const document of documents) {
   const html = read(document.relativeFile);
   const expectedCanonical = absoluteUrl(document.languageKey, document.definition.route);
   assert(html.includes(`<link rel="canonical" href="${expectedCanonical}">`), `${document.relativeFile}: canonical mismatch`);
   assert(html.includes(`<html lang="${languages[document.languageKey].htmlLang}">`), `${document.relativeFile}: html lang mismatch`);
+  assert(countLiteral(html, "<main>") + countLiteral(html, "<main ") === 1, `${document.relativeFile}: expected one main element`);
+  assert(countLiteral(html, "</main>") === 1, `${document.relativeFile}: main element is not closed exactly once`);
+  assert(countLiteral(html, "<footer>") + countLiteral(html, "<footer ") === 1, `${document.relativeFile}: expected one footer element`);
+  assert(countLiteral(html, "</footer>") === 1, `${document.relativeFile}: footer element is not closed exactly once`);
 }
 
 const sitemap = read("sitemap.xml");
@@ -122,8 +129,9 @@ for (const relativeFile of allHtml) {
 }
 
 assert(languageMenuCount === allHtml.length, `language menu regression: expected all ${allHtml.length} pages, found ${languageMenuCount}`);
-assert(hreflangPageCount === 594, `hreflang regression: expected 594 published pages, found ${hreflangPageCount}`);
-assert(localizedLanguageKeys.every((languageKey) => missingSixLanguageRoutes.size === 15), "six-language missing-route baseline changed");
+assert(hreflangPageCount === 684, `hreflang regression: expected 684 published pages, found ${hreflangPageCount}`);
+assert(missingSixLanguageRoutes.size === 0, "six-language canonical coverage is incomplete");
+assert(phase1CRoutes.size === 15, "Phase 1C route scope changed");
 
 const redirects = read("_redirects");
 assert(!redirects.includes("/products/ultrasound/handheld-ultrasound/convex-transvaginal-scanner/ /products/ultrasound/handheld-ultrasound/convex-scanner/"), "redirects: independent convex/transvaginal category must not redirect to convex-scanner");
@@ -144,13 +152,13 @@ for (const definition of pageDefinitions.filter(({ type }) => type === "blog-ind
   assert(html.includes('class="language-menu"'), `${definition.route}: English blog language menu missing`);
   assert(html.includes(`href="${definition.route}" aria-current="true"`), `${definition.route}: English language link must preserve the current page`);
   if (definition.type === "blog-article") {
-    assert((html.match(/data-language-fallback="true"/g) ?? []).length === 6, `${definition.route}: expected six safe language fallbacks`);
+    assert((html.match(/data-language-fallback="true"/g) ?? []).length === 0, `${definition.route}: completed language page still uses fallbacks`);
   }
 }
 
 const generation = runGeneration({ root, write: false });
 assert(generation.plannedDocuments === 0, `FR/PT documents: expected no planned documents, found ${generation.plannedDocuments}`);
-assert(generation.sitemapMappedUrls === 594, `sitemap generator: expected 594 mapped URLs, found ${generation.sitemapMappedUrls}`);
+assert(generation.sitemapMappedUrls === 684, `sitemap generator: expected 684 mapped URLs, found ${generation.sitemapMappedUrls}`);
 assert(generation.sitemapPreservedUnmappedUrls.length === 0, "sitemap generator: unresolved URLs remain outside the page map");
 assert(generation.changedDocuments === 0, `metadata generator: expected deterministic output, found ${generation.changedDocuments} changes`);
 
@@ -179,6 +187,28 @@ const localizedGeneration = generateCoreLocales({ root, write: false });
 assert(localizedGeneration.languages.fr.changed === 0, "fr: core page generation is not deterministic");
 assert(localizedGeneration.languages.pt.changed === 0, "pt: core page generation is not deterministic");
 
+const phase1CDefinitions = pageDefinitions.filter(({ route }) => phase1CRoutes.has(route));
+const phase1CSourceStrings = collectSourceStrings(root, phase1CDefinitions);
+for (const languageKey of localizedLanguageKeys) {
+  const catalog = JSON.parse(read(`scripts/i18n/translations/phase1c-${languageKey}.json`));
+  for (const source of phase1CSourceStrings) {
+    const translation = catalog[source];
+    assert(Boolean(translation), `${languageKey}: missing Phase 1C translation for ${source}`);
+    if (!translation) continue;
+    const technical = compareProtectedTechnicalContent(source, translation);
+    assert(!technical.missing.length && !technical.unexpected.length, `${languageKey}: Phase 1C protected technical content changed for ${source}`);
+    assert(!/ZXQTECH|CHIGOX-\d{4}/i.test(translation), `${languageKey}: Phase 1C translation placeholder leaked for ${source}`);
+  }
+  for (const key of Object.keys(terminology.en)) {
+    assert(catalog[terminology.en[key]] === terminology[languageKey][key], `${languageKey}: Phase 1C terminology mismatch for ${key}`);
+  }
+}
+
+const phase1CGeneration = generatePhase1CLocales({ root, write: false });
+for (const languageKey of localizedLanguageKeys) {
+  assert(phase1CGeneration.languages[languageKey].changedPages === 0, `${languageKey}: Phase 1C page generation is not deterministic`);
+}
+
 for (const anomaly of knownRouteAnomalies) warnings.push(`${anomaly.severity}: ${anomaly.id} - ${anomaly.detail}`);
 for (const file of generation.missingLanguageMenus) warnings.push(`template-gap: ${file} has no language selector to update`);
 
@@ -188,6 +218,7 @@ const report = {
   currentSitemapUrls: sitemapUrls.length,
   preservedUnmappedSitemapUrls: unmappedSitemapUrls,
   missingSixLanguagePages: localizedLanguageKeys.length * missingSixLanguageRoutes.size,
+  publishedPhase1CPages: localizedLanguageKeys.length * phase1CRoutes.size,
   publishedFrenchPortuguesePages: 152,
   publishedFrenchPortugueseBlogArticles: 18,
   currentLanguageMenus: languageMenuCount,
@@ -205,4 +236,4 @@ if (errors.length) {
 }
 
 console.log(JSON.stringify(report, null, 2));
-console.log("CHIGOX Phase 1B-2 i18n validation passed.");
+console.log("CHIGOX Phase 1C i18n validation passed.");

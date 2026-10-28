@@ -1,6 +1,6 @@
 # CHIGOX multilingual infrastructure
 
-This directory is the single source of truth for the nine-language rollout. Phase 1B-2 publishes all 76 canonical pages in French and Brazilian Portuguese while keeping both language-selector entries hidden.
+This directory is the single source of truth for the nine-language rollout. Phase 1C publishes all 76 canonical pages in EN, ES, TR, DE, IT, PL, KO, FR and PT-BR while keeping the FR/PT language-selector entries hidden until human acceptance.
 
 ## Scope
 
@@ -10,8 +10,13 @@ This directory is the single source of truth for the nine-language rollout. Phas
 - `fetch-core-translations.mjs`: development-only translation-catalog builder; it is never shipped to the browser or used at runtime.
 - `generate-core-locales.mjs`: generates `/fr/` and `/pt/` from reviewed catalogs while preserving the English canonical structure.
 - `translations/core-fr.json` and `translations/core-pt.json`: auditable exact-string translation catalogs.
+- `generate-phase1c-locales.mjs`: generates the 15 formerly missing canonical routes for ES/TR/DE/IT/PL/KO and reuses each locale's existing Products mega menu.
+- `fetch-phase1c-translations.mjs`: development-only catalog builder for the six Phase 1C locales.
+- `translations/phase1c-*.json`: auditable Phase 1C catalogs for the six existing localized sites.
+- `phase1c-translation-overrides.mjs`: reviewed medical terminology and context-sensitive instrument terminology corrections.
 - `translation-rules.mjs`: approved terminology and protection for models, specifications, units and certifications.
 - `validate-i18n.mjs`: repository, mapping, canonical, reciprocal hreflang, sitemap and rollout-boundary checks.
+- `validate-phase1c-locales.mjs`: six-language content, local link, asset, form, SEO and technical-token checks.
 - `i18n.test.mjs`: unit tests for mappings, fallbacks, metadata generation and technical-content protection.
 
 ## Safety rules
@@ -28,7 +33,9 @@ This directory is the single source of truth for the nine-language rollout. Phas
 ```sh
 node --test scripts/i18n/i18n.test.mjs
 node scripts/i18n/validate-i18n.mjs
+node scripts/i18n/validate-phase1c-locales.mjs
 node scripts/i18n/generate-core-locales.mjs
+node scripts/i18n/generate-phase1c-locales.mjs
 node scripts/i18n/generate-language-metadata.mjs
 ```
 
@@ -36,6 +43,7 @@ The generation commands are dry-run by default. Write mode is intentionally expl
 
 ```sh
 node scripts/i18n/generate-core-locales.mjs --write
+node scripts/i18n/generate-phase1c-locales.mjs --write
 node scripts/i18n/generate-language-metadata.mjs --write
 ```
 

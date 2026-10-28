@@ -97,13 +97,17 @@ export function collectTranslatableStrings(html) {
   return output;
 }
 
-export function collectCoreSourceStrings(root) {
+export function collectSourceStrings(root, definitions) {
   const strings = new Set();
-  for (const definition of corePageDefinitions) {
+  for (const definition of definitions) {
     const html = fs.readFileSync(path.join(root, sourceFileFor(definition.route)), "utf8");
     for (const value of collectTranslatableStrings(html)) strings.add(value);
   }
   return [...strings].sort((a, b) => a.localeCompare(b, "en"));
+}
+
+export function collectCoreSourceStrings(root) {
+  return collectSourceStrings(root, corePageDefinitions);
 }
 
 function translateValue(value, catalog, context) {
@@ -116,7 +120,7 @@ function translateValue(value, catalog, context) {
   return `${leading}${translated}${trailing}`;
 }
 
-function localizeInternalUrl(rawValue, languageKey, sourceRoute) {
+export function localizeInternalUrl(rawValue, languageKey, sourceRoute) {
   if (!rawValue || /^(?:#|mailto:|tel:|javascript:|data:)/i.test(rawValue)) return rawValue;
   let url;
   try {
@@ -172,7 +176,7 @@ function localizeTag(tag, languageKey, catalog, sourceRoute) {
 
 export function localizePageHtml(sourceHtml, definition, languageKey, catalog) {
   const language = languages[languageKey];
-  if (!language || !["fr", "pt"].includes(languageKey)) throw new Error(`Unsupported core locale: ${languageKey}`);
+  if (!language || languageKey === "en") throw new Error(`Unsupported localized locale: ${languageKey}`);
   let html = localizeJsonLd(sourceHtml, languageKey, catalog, definition.route);
   const protectedBlocks = [];
   html = html.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, (block) => {
@@ -189,6 +193,20 @@ export function localizePageHtml(sourceHtml, definition, languageKey, catalog) {
   const menu = updateLanguageMenu(html, definition.key, languageKey);
   if (!menu.updated) throw new Error(`${languageKey}:${definition.route}: language selector not found`);
   return menu.html;
+}
+
+export function localizeMappedDocumentLinks(html, languageKey, sourceRoute) {
+  const protectedBlocks = [];
+  const protect = (block) => {
+    const index = protectedBlocks.push(block) - 1;
+    return `<chigox-protected-block data-index="${index}"></chigox-protected-block>`;
+  };
+  let output = html.replace(/<head\b[\s\S]*?<\/head>/gi, protect);
+  output = output.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, protect);
+  output = output.replace(/<details class="language-menu">[\s\S]*?<\/details>/gi, protect);
+  output = output.replace(/\b(href|action)="([^"]*)"/gi, (_, name, value) => `${name}="${localizeInternalUrl(value, languageKey, sourceRoute)}"`);
+  output = output.replace(/<chigox-protected-block data-index="(\d+)"><\/chigox-protected-block>/g, (_, index) => protectedBlocks[Number(index)]);
+  return output.replace(/(<link rel="canonical" href=")[^"]*(">)/i, `$1${absoluteUrl(languageKey, sourceRoute)}$2`);
 }
 
 export function generateCoreLocales({ root = process.cwd(), write = false } = {}) {

@@ -100,7 +100,7 @@ export const pageDefinitions = Object.freeze([
 
 export const corePageDefinitions = pageDefinitions;
 
-export const missingSixLanguageRoutes = new Set([
+export const phase1CRoutes = new Set([
   "/blog/convex-transvaginal-ultrasound-buying-guide/",
   "/blog/rigid-endoscope-buying-guide/",
   "/blog/ureteroscope-buying-guide/",
@@ -117,6 +117,8 @@ export const missingSixLanguageRoutes = new Set([
   "/products/ultrasound/portable-color-ultrasound/",
   "/products/ultrasound/portable-color-ultrasound/cg-p31/",
 ]);
+
+export const missingSixLanguageRoutes = new Set();
 
 export const pageByKey = new Map(pageDefinitions.map((definition) => [definition.key, definition]));
 export const pageByRoute = new Map(pageDefinitions.map((definition) => [definition.route, definition]));
@@ -138,8 +140,7 @@ export function translationStatus(pageKey, languageKey) {
   if (!definition) throw new Error(`Unknown page: ${pageKey}`);
   if (!language) throw new Error(`Unknown language: ${languageKey}`);
   if (languageKey === "en") return "published";
-  if (plannedLanguageKeys.includes(languageKey)) return "published";
-  return missingSixLanguageRoutes.has(definition.route) ? "missing" : "published";
+  return "published";
 }
 
 export function resolveLanguageTarget(pageKey, languageKey) {

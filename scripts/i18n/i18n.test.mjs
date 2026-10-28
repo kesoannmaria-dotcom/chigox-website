@@ -6,6 +6,7 @@ import {
   languages,
   missingSixLanguageRoutes,
   pageDefinitions,
+  phase1CRoutes,
   resolveLanguageTarget,
   translationStatus,
 } from "./page-map.mjs";
@@ -13,15 +14,18 @@ import { renderHreflang, renderLanguageMenu, runGeneration, updateHreflang, upda
 import { collectCoreSourceStrings, generateCoreLocales } from "./core-localization.mjs";
 import { assertProtectedTechnicalContent, compareProtectedTechnicalContent, terminology } from "./translation-rules.mjs";
 import { applyBlogTranslationReview } from "./blog-translation-overrides.mjs";
+import { applyPhase1CTranslationReview } from "./phase1c-translation-overrides.mjs";
+import { generatePhase1CLocales } from "./generate-phase1c-locales.mjs";
 
 test("page map includes the Phase 1A canonical decisions", () => {
   assert.equal(pageDefinitions.length, 76);
-  assert.equal(missingSixLanguageRoutes.size, 15);
+  assert.equal(phase1CRoutes.size, 15);
+  assert.equal(missingSixLanguageRoutes.size, 0);
   assert.equal(pageDefinitions.filter(({ type }) => type === "blog-article").length, 9);
   assert.equal(pageDefinitions.filter(({ route }) => route.startsWith("/applications/")).length, 0);
   assert.equal(translationStatus("convex-transvaginal-scanner", "es"), "published");
   assert.equal(resolveLanguageTarget("cgu-03", "en").pageKey, "cgu-03");
-  assert.equal(resolveLanguageTarget("cgvet-a220t", "es").pageKey, "veterinary");
+  assert.equal(resolveLanguageTarget("cgvet-a220t", "es").pageKey, "cgvet-a220t");
 });
 
 test("FR and PT-BR sites are complete while their menu entries stay disabled", () => {
@@ -33,28 +37,29 @@ test("FR and PT-BR sites are complete while their menu entries stay disabled", (
   assert.equal(resolveLanguageTarget("home", "pt").kind, "disabled");
 });
 
-test("missing translations use a safe category fallback", () => {
+test("Phase 1C pages resolve to exact same-page translations", () => {
   assert.deepEqual(resolveLanguageTarget("cgvet-30", "es"), {
     languageKey: "es",
     status: "published",
-    kind: "fallback",
-    path: "/es/products/veterinary/",
-    pageKey: "veterinary",
+    kind: "exact",
+    path: "/es/products/veterinary/vet-anesthesia-machine/cgvet-30/",
+    pageKey: "cgvet-30",
   });
-  assert.equal(resolveLanguageTarget("blog-rigid-endoscope-guide", "de").path, "/de/blog/");
+  assert.equal(resolveLanguageTarget("blog-rigid-endoscope-guide", "de").path, "/de/blog/rigid-endoscope-buying-guide/");
 });
 
-test("hreflang contains exact translations only, never fallback pages", () => {
-  const missingAlternates = exactPublishedAlternates("cgvet-30");
-  assert.deepEqual(missingAlternates.map(({ hreflang }) => hreflang), ["en", "fr", "pt-BR", "x-default"]);
+test("hreflang contains all nine exact translations", () => {
+  const phase1CAlternates = exactPublishedAlternates("cgvet-30");
+  assert.deepEqual(phase1CAlternates.map(({ hreflang }) => hreflang), ["en", "es", "tr", "de", "it", "pl", "ko", "fr", "pt-BR", "x-default"]);
   const completeAlternates = exactPublishedAlternates("cge-100");
   assert.deepEqual(completeAlternates.map(({ hreflang }) => hreflang), ["en", "es", "tr", "de", "it", "pl", "ko", "fr", "pt-BR", "x-default"]);
 });
 
-test("language menu keeps FR/PT hidden and marks safe fallbacks", () => {
+test("language menu keeps FR/PT hidden and links active languages exactly", () => {
   const menu = renderLanguageMenu("cgvet-30", "en");
   assert.match(menu, /data-language-coming-soon="true"/);
-  assert.match(menu, /href="\/es\/products\/veterinary\/" data-language-fallback="true"/);
+  assert.match(menu, /href="\/es\/products\/veterinary\/vet-anesthesia-machine\/cgvet-30\/"/);
+  assert.doesNotMatch(menu, /data-language-fallback/);
   assert.doesNotMatch(menu, /href="\/(?:fr|pt)\//);
 });
 
@@ -95,15 +100,44 @@ test("Blog review distinguishes endoscopes from commercial scope", () => {
   assert.equal(reviewed["Start with Case Mix, Not the Quotation Sheet"], "Comece pelo perfil dos casos clínicos, não pela folha de cotação");
 });
 
+test("Phase 1C review normalizes medical-device terminology", () => {
+  assert.equal(
+    applyPhase1CTranslationReview({ probe: "Sonda de matriz en fase" }, "es").probe,
+    "Sonda de matriz faseada",
+  );
+  assert.equal(
+    applyPhase1CTranslationReview({ probe: "Dışbükey ve aşamalı dizi prob" }, "tr").probe,
+    "Konveks ve faz dizilimli prob",
+  );
+  assert.equal(
+    applyPhase1CTranslationReview({ product: "Tragbares tragbares Veterinär-Röntgensystem" }, "de").product,
+    "Tragbares handgeführtes Veterinär-Röntgensystem",
+  );
+  assert.equal(
+    applyPhase1CTranslationReview({ product: "클리닉용 수의사 마취기" }, "ko").product,
+    "클리닉용 수의 마취기",
+  );
+});
+
 test("Phase 1B metadata generation is deterministic", () => {
   const report = runGeneration({ root: process.cwd(), write: false });
   assert.equal(report.mode, "dry-run");
   assert.equal(report.canonicalPages, 76);
-  assert.equal(report.publishedDocuments, 594);
+  assert.equal(report.publishedDocuments, 684);
   assert.equal(report.plannedDocuments, 0);
   assert.equal(report.changedDocuments, 0);
   assert.deepEqual(report.missingLanguageMenus, []);
   assert.deepEqual(report.sitemapPreservedUnmappedUrls, []);
+});
+
+test("Phase 1C six-language generation is complete and deterministic", () => {
+  const report = generatePhase1CLocales({ root: process.cwd(), write: false });
+  assert.equal(report.routes, 15);
+  for (const languageKey of ["es", "tr", "de", "it", "pl", "ko"]) {
+    assert.equal(report.languages[languageKey].generatedPages, 15);
+    assert.equal(report.languages[languageKey].changedPages, 0);
+    assert.equal(report.languages[languageKey].localizedExistingLinks, 0);
+  }
 });
 
 test("FR and PT-BR full-site generation is complete and deterministic", () => {

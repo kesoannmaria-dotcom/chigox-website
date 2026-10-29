@@ -6,6 +6,7 @@ import {
   corePageDefinitions,
   knownRouteAnomalies,
   languages,
+  localizedPath,
   localizedLanguageKeys,
   missingSixLanguageRoutes,
   pageDefinitions,
@@ -92,22 +93,25 @@ let languageMenuCount = 0;
 let hreflangPageCount = 0;
 for (const relativeFile of allHtml) {
   const html = read(relativeFile);
+  const canonical = html.match(/<link rel="canonical" href="([^"]+)">/)?.[1];
+  const canonicalDefinition = canonical
+    ? corePageDefinitions.find((definition) => publishedLanguageKeys.some((languageKey) => absoluteUrl(languageKey, definition.route) === canonical))
+    : null;
   if (html.includes('class="language-menu"')) {
     languageMenuCount += 1;
     const languageMenu = html.match(/<details class="language-menu">[\s\S]*?<\/details>/)?.[0] ?? "";
-    assert(!/<a href="\/(?:fr|pt)\//.test(languageMenu), `${relativeFile}: FR/PT must remain unavailable`);
-    const plannedAnchors = languageMenu.match(/data-language-coming-soon="true"/g) ?? [];
-    assert(plannedAnchors.length === 2, `${relativeFile}: expected hidden FR/PT placeholders`);
+    if (canonicalDefinition) {
+      assert(!languageMenu.includes('data-language-coming-soon="true"'), `${relativeFile}: enabled language still uses a coming-soon placeholder`);
+      assert(!languageMenu.includes('data-language-fallback="true"'), `${relativeFile}: complete language site still uses a fallback target`);
+      assert(languageMenu.includes(`href="${localizedPath("fr", canonicalDefinition.route)}"`), `${relativeFile}: exact French language target missing`);
+      assert(languageMenu.includes(`href="${localizedPath("pt", canonicalDefinition.route)}"`), `${relativeFile}: exact Portuguese language target missing`);
+    }
   }
 
-  const canonical = html.match(/<link rel="canonical" href="([^"]+)">/)?.[1];
   const alternates = [...html.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)];
   if (alternates.length) hreflangPageCount += 1;
   assert(!alternates.some((match) => match[1] === "pt"), `${relativeFile}: Brazilian Portuguese hreflang must use pt-BR`);
 
-  const canonicalDefinition = canonical
-    ? corePageDefinitions.find((definition) => publishedLanguageKeys.some((languageKey) => absoluteUrl(languageKey, definition.route) === canonical))
-    : null;
   if (canonicalDefinition) {
     assert(alternates.some((match) => match[1] === "fr" && match[2] === absoluteUrl("fr", canonicalDefinition.route)), `${relativeFile}: French hreflang missing`);
     assert(alternates.some((match) => match[1] === "pt-BR" && match[2] === absoluteUrl("pt", canonicalDefinition.route)), `${relativeFile}: pt-BR hreflang missing`);

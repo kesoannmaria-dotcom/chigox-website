@@ -8,14 +8,14 @@ export const languages = Object.freeze({
   it: { code: "it", prefix: "it", htmlLang: "it", label: "Italiano", enabled: true, status: "published" },
   pl: { code: "pl", prefix: "pl", htmlLang: "pl", label: "Polski", enabled: true, status: "published" },
   ko: { code: "ko", prefix: "ko", htmlLang: "ko", label: "한국어", enabled: true, status: "published" },
-  fr: { code: "fr", prefix: "fr", htmlLang: "fr", label: "Français", enabled: false, status: "planned" },
-  pt: { code: "pt-BR", prefix: "pt", htmlLang: "pt-BR", label: "Português", enabled: false, status: "planned" },
+  fr: { code: "fr", prefix: "fr", htmlLang: "fr", label: "Français", enabled: true, status: "published" },
+  pt: { code: "pt-BR", prefix: "pt", htmlLang: "pt-BR", label: "Português", enabled: true, status: "published" },
 });
 
-export const activeLanguageKeys = Object.freeze(["en", "es", "tr", "de", "it", "pl", "ko"]);
-export const plannedLanguageKeys = Object.freeze(["fr", "pt"]);
+export const activeLanguageKeys = Object.freeze(["en", "es", "tr", "de", "it", "pl", "ko", "fr", "pt"]);
+export const plannedLanguageKeys = Object.freeze([]);
 export const localizedLanguageKeys = Object.freeze(["es", "tr", "de", "it", "pl", "ko"]);
-export const publishedLanguageKeys = Object.freeze([...activeLanguageKeys, ...plannedLanguageKeys]);
+export const publishedLanguageKeys = activeLanguageKeys;
 
 const page = (key, route, type, parentKey = null) => ({ key, route, type, parentKey });
 

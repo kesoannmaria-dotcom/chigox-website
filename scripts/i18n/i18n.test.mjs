@@ -37,13 +37,13 @@ test("page map includes the Phase 1A canonical decisions", () => {
   assert.equal(resolveLanguageTarget("cgvet-a220t", "es").pageKey, "cgvet-a220t");
 });
 
-test("FR and PT-BR sites are complete while their menu entries stay disabled", () => {
-  assert.equal(languages.fr.enabled, false);
-  assert.equal(languages.pt.enabled, false);
+test("FR and PT-BR sites are complete and enabled in the language menu", () => {
+  assert.equal(languages.fr.enabled, true);
+  assert.equal(languages.pt.enabled, true);
   assert.equal(languages.pt.code, "pt-BR");
   assert.equal(translationStatus("home", "fr"), "published");
   assert.equal(translationStatus("blog-rigid-endoscope-guide", "fr"), "published");
-  assert.equal(resolveLanguageTarget("home", "pt").kind, "disabled");
+  assert.equal(resolveLanguageTarget("home", "pt").kind, "exact");
 });
 
 test("Phase 1C pages resolve to exact same-page translations", () => {
@@ -64,12 +64,13 @@ test("hreflang contains all nine exact translations", () => {
   assert.deepEqual(completeAlternates.map(({ hreflang }) => hreflang), ["en", "es", "tr", "de", "it", "pl", "ko", "fr", "pt-BR", "x-default"]);
 });
 
-test("language menu keeps FR/PT hidden and links active languages exactly", () => {
+test("language menu links all nine languages to exact pages", () => {
   const menu = renderLanguageMenu("cgvet-30", "en");
-  assert.match(menu, /data-language-coming-soon="true"/);
+  assert.doesNotMatch(menu, /data-language-coming-soon="true"/);
   assert.match(menu, /href="\/es\/products\/veterinary\/vet-anesthesia-machine\/cgvet-30\/"/);
+  assert.match(menu, /href="\/fr\/products\/veterinary\/vet-anesthesia-machine\/cgvet-30\/"/);
+  assert.match(menu, /href="\/pt\/products\/veterinary\/vet-anesthesia-machine\/cgvet-30\/"/);
   assert.doesNotMatch(menu, /data-language-fallback/);
-  assert.doesNotMatch(menu, /href="\/(?:fr|pt)\//);
 });
 
 test("metadata updates are deterministic", () => {

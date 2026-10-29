@@ -66,9 +66,10 @@ for (const languageKey of localizedLanguageKeys) {
     assert(html.includes(`hreflang="x-default" href="${absoluteUrl("en", definition.route)}"`), `${relativeFile}: x-default mismatch`);
 
     const menu = html.match(/<details class="language-menu">[\s\S]*?<\/details>/)?.[0] ?? "";
-    assert((menu.match(/data-language-coming-soon="true"/g) ?? []).length === 2, `${relativeFile}: FR/PT entries must remain hidden`);
+    assert(!menu.includes('data-language-coming-soon="true"'), `${relativeFile}: enabled FR/PT language entry still marked coming soon`);
     assert(!menu.includes("data-language-fallback"), `${relativeFile}: completed language menu still contains a fallback`);
-    assert(!/<a href="\/(?:fr|pt)\//.test(menu), `${relativeFile}: FR/PT menu entries must not be clickable`);
+    assert(menu.includes(`href="${localizedPath("fr", definition.route)}"`), `${relativeFile}: exact French language target missing`);
+    assert(menu.includes(`href="${localizedPath("pt", definition.route)}"`), `${relativeFile}: exact Portuguese language target missing`);
 
     const withoutScripts = html.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, "");
     if (phase1CRoutes.has(definition.route)) {

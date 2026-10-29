@@ -26,6 +26,14 @@ const warnings = [];
 const assert = (condition, message) => { if (!condition) errors.push(message); };
 const read = (relativeFile) => fs.readFileSync(path.join(root, relativeFile), "utf8");
 const countLiteral = (value, token) => value.split(token).length - 1;
+const forbiddenLocalizedFragments = {
+  es: ["<h2>Inquiry Form</h2>"],
+  tr: ["<h2>Inquiry Form</h2>"],
+  de: ["<h2>Need a configuration for this category?</h2>"],
+  it: ["<h2>Need a configuration for this category?</h2>"],
+  pl: ["<h2>Need a configuration for this category?</h2>"],
+  ko: ["<h2>Need a configuration for this category?</h2>"],
+};
 
 const keys = pageDefinitions.map(({ key }) => key);
 const routes = pageDefinitions.map(({ route }) => route);
@@ -52,6 +60,9 @@ for (const document of documents) {
   assert(countLiteral(html, "</main>") === 1, `${document.relativeFile}: main element is not closed exactly once`);
   assert(countLiteral(html, "<footer>") + countLiteral(html, "<footer ") === 1, `${document.relativeFile}: expected one footer element`);
   assert(countLiteral(html, "</footer>") === 1, `${document.relativeFile}: footer element is not closed exactly once`);
+  for (const fragment of forbiddenLocalizedFragments[document.languageKey] ?? []) {
+    assert(!html.includes(fragment), `${document.relativeFile}: untranslated shared template fragment: ${fragment}`);
+  }
 }
 
 const sitemap = read("sitemap.xml");

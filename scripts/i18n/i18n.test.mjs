@@ -180,7 +180,7 @@ test("Phase 1C six-language generation is complete and deterministic", () => {
 
 test("FR and PT-BR full-site generation is complete and deterministic", () => {
   assert.equal(corePageDefinitions.length, 76);
-  assert.equal(collectCoreSourceStrings(process.cwd()).length, 2160);
+  assert.equal(collectCoreSourceStrings(process.cwd()).length, 2169);
   const report = generateCoreLocales({ root: process.cwd(), write: false });
   assert.equal(report.languages.fr.pages, 76);
   assert.equal(report.languages.pt.pages, 76);

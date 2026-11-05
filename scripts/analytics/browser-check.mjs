@@ -72,7 +72,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context, requests } = await createContext();
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   const defaults = await consentCommands(page);
   check(defaults.length === 1 && defaults[0][1] === "default", "Consent default is queued exactly once");
   for (const field of ["analytics_storage", "ad_storage", "ad_user_data", "ad_personalization"]) {
@@ -89,9 +89,9 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context, requests } = await createContext();
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-consent-reject]").click();
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
   const state = await page.evaluate(() => window.CHIGOXConsent.getState());
   check(state.analytics === false && state.advertising === false, "Reject all persists both optional categories as denied");
   check(requests.length === 0, "Reject all prevents GTM and GA4 requests after reload");
@@ -103,7 +103,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context, requests } = await createContext();
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-consent-accept]").click();
   await page.waitForFunction(() => window.__CHIGOX_GTM_STUB__ === 1);
   check(requests.filter((url) => url.includes("googletagmanager.com/gtm.js")).length === 1, "Accept all loads GTM once on the page");
@@ -125,7 +125,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
   await page.locator('[data-consent-choice="analytics"]').uncheck();
   const beforeWithdrawal = requests.length;
   await page.locator("[data-consent-save]").click();
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
   const withdrawn = await page.evaluate(() => window.CHIGOXConsent.getState());
   check(withdrawn.analytics === false, "Analytics consent can be withdrawn");
   check(requests.length === beforeWithdrawal, "Withdrawal reload does not load GTM again");
@@ -136,7 +136,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context } = await createContext({ postOk: true });
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/contact-us/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/contact-us/`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-consent-accept]").click();
   await page.locator('input[name="Name"]').fill("Analytics Test");
   await page.locator('input[name="Email"]').fill("analytics-test@example.invalid");
@@ -154,7 +154,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context } = await createContext({ postOk: false });
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/contact-us/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/contact-us/`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-consent-accept]").click();
   await page.locator('input[name="Name"]').fill("Failure Test");
   await page.locator('input[name="Email"]').fill("failure@example.invalid");
@@ -170,7 +170,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context } = await createContext();
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/products/ultrasound/handheld-ultrasound/convex-scanner/cgu-c/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/products/ultrasound/handheld-ultrasound/convex-scanner/cgu-c/`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-consent-accept]").click();
   const form = page.locator('form[action^="mailto:"]');
   await form.locator("input").first().focus();
@@ -188,7 +188,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
   for (const [language, route] of Object.entries(paths)) {
     const { context } = await createContext();
     const page = await context.newPage();
-    await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
+    await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded" });
     const title = (await page.locator("#chigox-cookie-title").textContent()).trim();
     check(Boolean(title), `${language} cookie banner has localized content`);
     report.languages[language] = title;
@@ -200,7 +200,7 @@ const createContext = async ({ postOk = true, viewport = { width: 1440, height: 
 {
   const { context } = await createContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/`, { waitUntil: "domcontentloaded" });
   await page.locator("[data-consent-customize]").click();
   const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
   check(noOverflow, "390px consent UI has no horizontal overflow");

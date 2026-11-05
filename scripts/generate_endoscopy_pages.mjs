@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { applyAnalyticsToHtml } from "./analytics/html-integration.mjs";
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const write = (file, content) => {
   const target = path.join(root, file);
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, content);
+  fs.writeFileSync(target, applyAnalyticsToHtml(content));
 };
 
 const detailTemplate = read("products/endoscopy-system/endoscope-system/cge-100/index.html");

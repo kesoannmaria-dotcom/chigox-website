@@ -1,0 +1,269 @@
+.chigox-cookie-banner,
+.chigox-cookie-dialog {
+  color: #102a43;
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+.chigox-cookie-banner[hidden],
+.chigox-cookie-modal[hidden] {
+  display: none !important;
+}
+
+.chigox-cookie-banner {
+  position: fixed;
+  z-index: 10000;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: min(880px, calc(100vw - 48px));
+  margin: 0 auto;
+  padding: 20px 22px;
+  border: 1px solid #d8e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(16, 42, 67, 0.16);
+}
+
+.chigox-cookie-copy {
+  flex: 1 1 460px;
+}
+
+.chigox-cookie-copy h2,
+.chigox-cookie-dialog h2 {
+  margin: 0 0 8px;
+  color: #123f6d;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.chigox-cookie-copy p,
+.chigox-cookie-dialog > p {
+  margin: 0;
+  color: #52677d;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.chigox-cookie-actions,
+.chigox-cookie-dialog-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.chigox-cookie-button,
+.chigox-cookie-link,
+.chigox-cookie-close,
+.cookie-settings-link {
+  appearance: none;
+  border: 0;
+  font: inherit;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.chigox-cookie-button {
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 1px solid #c7d6e5;
+  border-radius: 6px;
+  color: #123f6d;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.chigox-cookie-button:hover {
+  background: #f3f7fb;
+}
+
+.chigox-cookie-primary {
+  border-color: #123f6d;
+  color: #ffffff;
+  background: #123f6d;
+}
+
+.chigox-cookie-primary:hover {
+  background: #0b3158;
+}
+
+.chigox-cookie-link {
+  padding: 8px 4px;
+  color: #245b8f;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chigox-cookie-button:focus-visible,
+.chigox-cookie-link:focus-visible,
+.chigox-cookie-close:focus-visible,
+.cookie-settings-link:focus-visible,
+.chigox-cookie-choice input:focus-visible {
+  outline: 3px solid rgba(36, 91, 143, 0.28);
+  outline-offset: 2px;
+}
+
+.chigox-cookie-modal {
+  position: fixed;
+  z-index: 10001;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 24, 40, 0.48);
+}
+
+.chigox-cookie-dialog {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  padding: 28px;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(8, 24, 40, 0.3);
+}
+
+.chigox-cookie-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: #52677d;
+  background: transparent;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.chigox-cookie-close:hover {
+  background: #eef3f8;
+}
+
+.chigox-cookie-choices {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.chigox-cookie-choice {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
+  border: 1px solid #d8e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.chigox-cookie-choice input {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #123f6d;
+}
+
+.chigox-cookie-choice strong,
+.chigox-cookie-choice small {
+  display: block;
+}
+
+.chigox-cookie-choice strong {
+  margin-bottom: 4px;
+  color: #243b53;
+  font-size: 15px;
+}
+
+.chigox-cookie-choice small {
+  color: #627d98;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chigox-cookie-dialog-open {
+  overflow: hidden;
+}
+
+.cookie-settings-footer {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.cookie-settings-link {
+  padding: 4px 0;
+  color: inherit;
+  background: transparent;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  opacity: 0.86;
+}
+
+.cookie-settings-link:hover {
+  opacity: 1;
+}
+
+.inquiry-form-status {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.inquiry-form-status[data-state="success"] {
+  color: #176b43;
+}
+
+.inquiry-form-status[data-state="error"] {
+  color: #a12b2b;
+}
+
+@media (max-width: 720px) {
+  .chigox-cookie-banner {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    display: block;
+    width: auto;
+    padding: 18px;
+  }
+
+  .chigox-cookie-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-top: 16px;
+  }
+
+  .chigox-cookie-link {
+    grid-column: 1 / -1;
+  }
+
+  .chigox-cookie-modal {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .chigox-cookie-dialog {
+    max-height: calc(100vh - 24px);
+    padding: 24px 18px;
+  }
+
+  .chigox-cookie-dialog-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

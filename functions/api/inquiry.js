@@ -2,6 +2,23 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const TURNSTILE_SITEVERIFY_ENDPOINT =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const TURNSTILE_ACTION = "inquiry";
+const TURNSTILE_PREVIEW_TEST_MODE = "cloudflare-preview";
+const TURNSTILE_PREVIEW_HOST_SUFFIX = ".chigox-website.pages.dev";
+const TURNSTILE_TEST_SITE_KEY = "1x00000000000000000000AA";
+const TURNSTILE_TEST_SECRET_KEY = "1x0000000000000000000000000000000AA";
+const TURNSTILE_TEST_SITE_KEYS = new Set([
+  TURNSTILE_TEST_SITE_KEY,
+  "2x00000000000000000000AB",
+  "1x00000000000000000000BB",
+  "2x00000000000000000000BB",
+  "3x00000000000000000000FF"
+]);
+const TURNSTILE_TEST_SECRET_KEYS = new Set([
+  TURNSTILE_TEST_SECRET_KEY,
+  "2x0000000000000000000000000000000AA",
+  "3x0000000000000000000000000000000AA"
+]);
+const DEFAULT_PRODUCTION_HOSTNAMES = new Set(["chigox.com", "www.chigox.com"]);
 const RATE_LIMIT_WINDOW_SECONDS = 10 * 60;
 const RATE_LIMIT_MAX_REQUESTS = 5;
 const MAX_NOTIFICATION_ATTEMPTS = 8;
@@ -289,16 +306,50 @@ async function isRateLimited(request) {
 }
 
 const normalizeHostname = (hostname) =>
-  String(hostname || "").trim().toLowerCase().replace(/^www\./u, "");
+  String(hostname || "").trim().toLowerCase().replace(/\.$/u, "");
 
-export async function verifyTurnstile(request, env, token, fetchImpl = fetch) {
+const configuredProductionHostnames = (env) => {
+  const configured = readEnv(env, "TURNSTILE_ALLOWED_HOSTNAMES")
+    .split(",")
+    .map(normalizeHostname)
+    .filter(Boolean);
+  return configured.length ? new Set(configured) : DEFAULT_PRODUCTION_HOSTNAMES;
+};
+
+const resolveTurnstileConfiguration = (request, env) => {
   const secret = getTurnstileSecret(env);
   const siteKey = getTurnstileSiteKey(env);
-  if (!secret || !siteKey) return errorResult("CONFIG_UNAVAILABLE");
+  if (!secret || !siteKey) return null;
+
+  const requestHostname = normalizeHostname(new URL(request.url).hostname);
+  const testMode = readEnv(env, "TURNSTILE_TEST_MODE");
+  const usesTestSiteKey = TURNSTILE_TEST_SITE_KEYS.has(siteKey);
+  const usesTestSecret = TURNSTILE_TEST_SECRET_KEYS.has(secret);
+
+  if (testMode) {
+    if (
+      testMode !== TURNSTILE_PREVIEW_TEST_MODE ||
+      siteKey !== TURNSTILE_TEST_SITE_KEY ||
+      secret !== TURNSTILE_TEST_SECRET_KEY ||
+      !requestHostname.endsWith(TURNSTILE_PREVIEW_HOST_SUFFIX)
+    ) {
+      return null;
+    }
+    return { mode: "preview-test", requestHostname, secret, siteKey };
+  }
+
+  if (usesTestSiteKey || usesTestSecret) return null;
+  if (!configuredProductionHostnames(env).has(requestHostname)) return null;
+  return { mode: "production", requestHostname, secret, siteKey };
+};
+
+export async function verifyTurnstile(request, env, token, fetchImpl = fetch) {
+  const config = resolveTurnstileConfiguration(request, env);
+  if (!config) return errorResult("CONFIG_UNAVAILABLE");
   if (!token) return errorResult("VERIFICATION_REQUIRED", "turnstile");
 
   const body = new FormData();
-  body.set("secret", secret);
+  body.set("secret", config.secret);
   body.set("response", token);
   const clientIp = getClientIp(request);
   if (clientIp && clientIp !== "unknown") body.set("remoteip", clientIp);
@@ -315,13 +366,25 @@ export async function verifyTurnstile(request, env, token, fetchImpl = fetch) {
   if (!response.ok) return errorResult("VERIFICATION_FAILED", "turnstile");
 
   const result = await response.json();
-  if (!result.success || result.action !== TURNSTILE_ACTION) {
+  if (!result.success) {
     return errorResult("VERIFICATION_FAILED", "turnstile");
   }
 
-  const requestHostname = normalizeHostname(new URL(request.url).hostname);
   const verifiedHostname = normalizeHostname(result.hostname);
-  if (verifiedHostname && requestHostname !== verifiedHostname) {
+  if (config.mode === "preview-test") {
+    if (
+      verifiedHostname !== "example.com" ||
+      (result.action != null && result.action !== "")
+    ) {
+      return errorResult("VERIFICATION_FAILED", "turnstile");
+    }
+    return { ok: true };
+  }
+
+  if (
+    result.action !== TURNSTILE_ACTION ||
+    verifiedHostname !== config.requestHostname
+  ) {
     return errorResult("VERIFICATION_FAILED", "turnstile");
   }
   return { ok: true };
@@ -646,17 +709,18 @@ export async function retryPendingNotifications(
   return { checked: (query?.results || []).length, sent, pending };
 }
 
-const serviceConfiguration = (env) => {
-  const siteKey = getTurnstileSiteKey(env);
-  const secret = getTurnstileSecret(env);
+const serviceConfiguration = (request, env) => {
+  const turnstile = request
+    ? resolveTurnstileConfiguration(request, env)
+    : null;
   return {
-    ready: Boolean(getInquiryDatabase(env) && siteKey && secret),
-    siteKey: siteKey && secret ? siteKey : ""
+    ready: Boolean(getInquiryDatabase(env) && turnstile),
+    siteKey: turnstile?.siteKey || ""
   };
 };
 
-export async function onRequestGet({ env } = {}) {
-  const config = serviceConfiguration(env);
+export async function onRequestGet({ request, env } = {}) {
+  const config = serviceConfiguration(request, env);
   if (!config.ready) {
     return jsonResponse(errorResult("CONFIG_UNAVAILABLE"), 503);
   }
@@ -669,7 +733,7 @@ export async function onRequestGet({ env } = {}) {
 }
 
 export async function onRequestPost({ request, env }) {
-  const config = serviceConfiguration(env);
+  const config = serviceConfiguration(request, env);
   if (!config.ready) {
     return jsonResponse(errorResult("CONFIG_UNAVAILABLE"), 503);
   }

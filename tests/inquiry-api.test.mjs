@@ -15,6 +15,10 @@ import {
 } from "../functions/api/inquiry-retry.js";
 
 const originalFetch = globalThis.fetch;
+const OFFICIAL_TEST_SITE_KEY = "1x00000000000000000000AA";
+const OFFICIAL_TEST_SECRET_KEY = "1x0000000000000000000000000000000AA";
+const PREVIEW_API_URL =
+  "https://4c3b7534.chigox-website.pages.dev/api/inquiry";
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -153,12 +157,20 @@ class MockD1 {
 
 const baseEnv = (db = new MockD1()) => ({
   INQUIRY_DB: db,
-  TURNSTILE_SITE_KEY: "preview-site-key",
-  TURNSTILE_SECRET_KEY: "preview-secret-key",
+  TURNSTILE_SITE_KEY: "production-site-key",
+  TURNSTILE_SECRET_KEY: "production-secret-key",
+  TURNSTILE_ALLOWED_HOSTNAMES: "preview.example",
   RESEND_API_KEY: "preview-resend-key",
   INQUIRY_FROM_EMAIL: "CHIGOX Preview <preview@example.com>",
   INQUIRY_NOTIFICATION_TO: "preview-recipient@example.com",
   INQUIRY_RETRY_SECRET: "preview-retry-secret"
+});
+
+const previewTestEnv = (db = new MockD1()) => ({
+  ...baseEnv(db),
+  TURNSTILE_SITE_KEY: OFFICIAL_TEST_SITE_KEY,
+  TURNSTILE_SECRET_KEY: OFFICIAL_TEST_SECRET_KEY,
+  TURNSTILE_TEST_MODE: "cloudflare-preview"
 });
 
 const payload = (overrides = {}) => ({
@@ -179,8 +191,12 @@ const payload = (overrides = {}) => ({
   ...overrides
 });
 
-const requestFor = (body, headers = {}) => {
-  const request = new Request("https://preview.example/api/inquiry", {
+const requestFor = (
+  body,
+  headers = {},
+  url = "https://preview.example/api/inquiry"
+) => {
+  const request = new Request(url, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body)
@@ -188,6 +204,9 @@ const requestFor = (body, headers = {}) => {
   Object.defineProperty(request, "cf", { value: { country: "CO" } });
   return request;
 };
+
+const configRequestFor = (url = "https://preview.example/api/inquiry") =>
+  new Request(url, { headers: { accept: "application/json" } });
 
 const installFetch = ({ turnstileSuccess = true, resendSuccess = true } = {}) => {
   const calls = { turnstile: 0, resend: 0, resendHeaders: [] };
@@ -213,15 +232,26 @@ const installFetch = ({ turnstileSuccess = true, resendSuccess = true } = {}) =>
 };
 
 test("GET exposes the public site key only when D1 and both Turnstile keys exist", async () => {
-  const ready = await onRequestGet({ env: baseEnv() });
+  const ready = await onRequestGet({
+    request: configRequestFor(),
+    env: baseEnv()
+  });
   assert.equal(ready.status, 200);
-  assert.equal((await ready.json()).turnstileSiteKey, "preview-site-key");
+  assert.equal((await ready.json()).turnstileSiteKey, "production-site-key");
 
   const unavailable = await onRequestGet({
+    request: configRequestFor(),
     env: { TURNSTILE_SITE_KEY: "site-only" }
   });
   assert.equal(unavailable.status, 503);
   assert.equal((await unavailable.json()).code, "CONFIG_UNAVAILABLE");
+
+  const previewReady = await onRequestGet({
+    request: configRequestFor(PREVIEW_API_URL),
+    env: previewTestEnv()
+  });
+  assert.equal(previewReady.status, 200);
+  assert.equal((await previewReady.json()).turnstileSiteKey, OFFICIAL_TEST_SITE_KEY);
 });
 
 test("legacy DB binding is never used when INQUIRY_DB is missing", async () => {
@@ -232,7 +262,7 @@ test("legacy DB binding is never used when INQUIRY_DB is missing", async () => {
     DB: legacyDatabase
   };
 
-  const config = await onRequestGet({ env });
+  const config = await onRequestGet({ request: configRequestFor(), env });
   assert.equal(config.status, 503);
   assert.equal((await config.json()).code, "CONFIG_UNAVAILABLE");
 
@@ -316,6 +346,135 @@ test("Turnstile action and hostname must match the inquiry request", async () =>
     async () => Response.json({ success: true, action: "inquiry", hostname: "other.example" })
   );
   assert.equal(wrongHost.code, "VERIFICATION_FAILED");
+});
+
+test("official Preview test response accepts example.com without an action", async () => {
+  const result = await verifyTurnstile(
+    requestFor(payload(), {}, PREVIEW_API_URL),
+    previewTestEnv(),
+    "dummy-token",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.deepEqual(result, { ok: true });
+});
+
+test("official Preview test response still fails when success is false", async () => {
+  const result = await verifyTurnstile(
+    requestFor(payload(), {}, PREVIEW_API_URL),
+    previewTestEnv(),
+    "dummy-token",
+    async () => Response.json({ success: false, hostname: "example.com" })
+  );
+  assert.equal(result.code, "VERIFICATION_FAILED");
+});
+
+test("official Preview test response strictly requires example.com and no action", async () => {
+  const wrongHostname = await verifyTurnstile(
+    requestFor(payload(), {}, PREVIEW_API_URL),
+    previewTestEnv(),
+    "dummy-token",
+    async () =>
+      Response.json({ success: true, hostname: "4c3b7534.chigox-website.pages.dev" })
+  );
+  assert.equal(wrongHostname.code, "VERIFICATION_FAILED");
+
+  const unexpectedAction = await verifyTurnstile(
+    requestFor(payload(), {}, PREVIEW_API_URL),
+    previewTestEnv(),
+    "dummy-token",
+    async () =>
+      Response.json({ success: true, hostname: "example.com", action: "inquiry" })
+  );
+  assert.equal(unexpectedAction.code, "VERIFICATION_FAILED");
+});
+
+test("official test keys and test mode are rejected on Production", async () => {
+  const productionRequest = requestFor(
+    payload(),
+    {},
+    "https://www.chigox.com/api/inquiry"
+  );
+  const result = await verifyTurnstile(
+    productionRequest,
+    previewTestEnv(),
+    "dummy-token",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.equal(result.code, "CONFIG_UNAVAILABLE");
+
+  const testModeDisabled = previewTestEnv();
+  delete testModeDisabled.TURNSTILE_TEST_MODE;
+  const testKeysWithoutMode = await verifyTurnstile(
+    productionRequest,
+    testModeDisabled,
+    "dummy-token",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.equal(testKeysWithoutMode.code, "CONFIG_UNAVAILABLE");
+});
+
+test("production verification fails closed for wrong action or hostname", async () => {
+  const productionRequest = requestFor(
+    payload(),
+    {},
+    "https://www.chigox.com/api/inquiry"
+  );
+  const productionEnv = {
+    ...baseEnv(),
+    TURNSTILE_ALLOWED_HOSTNAMES: "chigox.com,www.chigox.com"
+  };
+  const wrongAction = await verifyTurnstile(
+    productionRequest,
+    productionEnv,
+    "token",
+    async () =>
+      Response.json({ success: true, action: "login", hostname: "www.chigox.com" })
+  );
+  assert.equal(wrongAction.code, "VERIFICATION_FAILED");
+
+  const wrongHostname = await verifyTurnstile(
+    productionRequest,
+    productionEnv,
+    "token",
+    async () =>
+      Response.json({ success: true, action: "inquiry", hostname: "other.example" })
+  );
+  assert.equal(wrongHostname.code, "VERIFICATION_FAILED");
+});
+
+test("missing token, secret, or invalid Preview test configuration fails closed", async () => {
+  const previewRequest = requestFor(payload(), {}, PREVIEW_API_URL);
+  const missingToken = await verifyTurnstile(
+    previewRequest,
+    previewTestEnv(),
+    "",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.equal(missingToken.code, "VERIFICATION_REQUIRED");
+
+  const missingSecret = await verifyTurnstile(
+    previewRequest,
+    { ...previewTestEnv(), TURNSTILE_SECRET_KEY: "" },
+    "dummy-token",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.equal(missingSecret.code, "CONFIG_UNAVAILABLE");
+
+  const wrongMode = await verifyTurnstile(
+    previewRequest,
+    { ...previewTestEnv(), TURNSTILE_TEST_MODE: "true" },
+    "dummy-token",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.equal(wrongMode.code, "CONFIG_UNAVAILABLE");
+
+  const mismatchedSecret = await verifyTurnstile(
+    previewRequest,
+    { ...previewTestEnv(), TURNSTILE_SECRET_KEY: "production-secret-key" },
+    "dummy-token",
+    async () => Response.json({ success: true, hostname: "example.com" })
+  );
+  assert.equal(mismatchedSecret.code, "CONFIG_UNAVAILABLE");
 });
 
 test("invalid email and missing required fields are rejected before storage", async () => {

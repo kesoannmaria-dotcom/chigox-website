@@ -75,6 +75,16 @@ const readEnv = (env, ...names) => {
   return "";
 };
 
+const getInquiryDatabase = (env) => env?.INQUIRY_DB || null;
+
+const requireInquiryDatabase = (env) => {
+  const database = getInquiryDatabase(env);
+  if (!database) {
+    throw new Error("D1 binding INQUIRY_DB is not configured");
+  }
+  return database;
+};
+
 const getTurnstileSecret = (env) =>
   readEnv(
     env,
@@ -383,14 +393,14 @@ const rowToInquiry = (row) => ({
 });
 
 export async function saveInquiry(env, inquiry, request) {
-  if (!env?.DB) throw new Error("D1 binding DB is not configured");
+  const database = requireInquiryDatabase(env);
   const { idempotencyKey, payloadHash } = await prepareInquiryIdentity(
     inquiry,
     request
   );
   const inquiryId = createInquiryId();
 
-  const result = await env.DB.prepare(
+  const result = await database.prepare(
     `INSERT INTO contact_inquiries (
       inquiry_id, idempotency_key, payload_hash, customer_name, email, country,
       company, product_code, message, language, page_url, landing_page,
@@ -429,7 +439,7 @@ export async function saveInquiry(env, inquiry, request) {
     };
   }
 
-  const existing = await env.DB.prepare(
+  const existing = await database.prepare(
     `SELECT * FROM contact_inquiries WHERE idempotency_key = ? LIMIT 1`
   )
     .bind(idempotencyKey)
@@ -496,7 +506,8 @@ const nextRetryAt = (attempts) => {
 };
 
 async function markNotificationPending(env, inquiryId, attempts, errorCode) {
-  await env.DB.prepare(
+  const database = requireInquiryDatabase(env);
+  await database.prepare(
     `UPDATE contact_inquiries
      SET notification_status = 'notification_pending',
          notification_attempts = ?,
@@ -515,7 +526,8 @@ export async function notifyInquiry(env, inquiry, fetchImpl = fetch) {
     return { status: "sent", skipped: true };
   }
 
-  const claim = await env.DB.prepare(
+  const database = requireInquiryDatabase(env);
+  const claim = await database.prepare(
     `UPDATE contact_inquiries
      SET notification_status = 'sending', updated_at = CURRENT_TIMESTAMP
      WHERE inquiry_id = ?
@@ -564,7 +576,7 @@ export async function notifyInquiry(env, inquiry, fetchImpl = fetch) {
     });
     if (!response.ok) throw new Error(`RESEND_HTTP_${response.status}`);
     const result = await response.json().catch(() => ({}));
-    await env.DB.prepare(
+    await database.prepare(
       `UPDATE contact_inquiries
        SET notification_status = 'sent',
            notification_attempts = ?,
@@ -595,8 +607,8 @@ export async function retryPendingNotifications(
   fetchImpl = fetch,
   limit = 25
 ) {
-  if (!env?.DB) throw new Error("D1 binding DB is not configured");
-  const query = await env.DB.prepare(
+  const database = requireInquiryDatabase(env);
+  const query = await database.prepare(
     `SELECT * FROM contact_inquiries
      WHERE (
          notification_status IN ('pending', 'notification_pending')
@@ -638,7 +650,7 @@ const serviceConfiguration = (env) => {
   const siteKey = getTurnstileSiteKey(env);
   const secret = getTurnstileSecret(env);
   return {
-    ready: Boolean(env?.DB && siteKey && secret),
+    ready: Boolean(getInquiryDatabase(env) && siteKey && secret),
     siteKey: siteKey && secret ? siteKey : ""
   };
 };

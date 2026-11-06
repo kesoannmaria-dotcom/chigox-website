@@ -152,7 +152,7 @@ class MockD1 {
 }
 
 const baseEnv = (db = new MockD1()) => ({
-  DB: db,
+  INQUIRY_DB: db,
   TURNSTILE_SITE_KEY: "preview-site-key",
   TURNSTILE_SECRET_KEY: "preview-secret-key",
   RESEND_API_KEY: "preview-resend-key",
@@ -222,6 +222,35 @@ test("GET exposes the public site key only when D1 and both Turnstile keys exist
   });
   assert.equal(unavailable.status, 503);
   assert.equal((await unavailable.json()).code, "CONFIG_UNAVAILABLE");
+});
+
+test("legacy DB binding is never used when INQUIRY_DB is missing", async () => {
+  const legacyDatabase = new MockD1();
+  const env = {
+    ...baseEnv(),
+    INQUIRY_DB: undefined,
+    DB: legacyDatabase
+  };
+
+  const config = await onRequestGet({ env });
+  assert.equal(config.status, 503);
+  assert.equal((await config.json()).code, "CONFIG_UNAVAILABLE");
+
+  const calls = installFetch();
+  const submission = await onRequestPost({
+    request: requestFor(payload()),
+    env
+  });
+  assert.equal(submission.status, 503);
+  assert.equal((await submission.json()).code, "CONFIG_UNAVAILABLE");
+  assert.equal(legacyDatabase.rows.length, 0);
+  assert.equal(calls.turnstile, 0);
+  assert.equal(calls.resend, 0);
+
+  await assert.rejects(
+    retryPendingNotifications(env),
+    /INQUIRY_DB is not configured/
+  );
 });
 
 test("normal submission saves first and records a sent notification", async () => {

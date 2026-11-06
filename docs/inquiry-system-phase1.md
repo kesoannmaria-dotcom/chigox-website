@@ -30,8 +30,12 @@ migrations/0001_create_contact_inquiries.sql
 Bind it to Preview as:
 
 ```text
-DB
+INQUIRY_DB
 ```
+
+The API intentionally does not fall back to a generic `DB` binding. If
+`INQUIRY_DB` is missing, both submission and notification retry fail closed
+without writing to another database.
 
 Configure these Preview-only variables and secrets:
 

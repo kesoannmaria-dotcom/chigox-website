@@ -289,10 +289,16 @@
     data.set("idempotency_key", form.dataset.inquiryIdempotencyKey);
   };
 
-  const setupForm = async (form, config) => {
+  const setupForm = async (form, config, pendingSubmitHandler) => {
     const submit = form.querySelector('button[type="submit"]');
     if (!submit) return;
     const status = statusElement(form);
+    let widgetId;
+    let verificationReady = false;
+    let isSubmitting = false;
+    let hasSubmitted = false;
+    let preserveStatusAfterReset = false;
+
     submit.disabled = true;
     setStatus(status, copy.loading);
 
@@ -300,33 +306,29 @@
     widget.className = "inquiry-turnstile";
     submit.before(widget);
 
-    let widgetId;
-    try {
-      const turnstile = await loadTurnstile();
-      widgetId = turnstile.render(widget, {
-        sitekey: config.turnstileSiteKey,
-        action: config.turnstileAction || "inquiry",
-        callback: () => {
-          submit.disabled = false;
-          setStatus(status, copy.ready);
-        },
-        "expired-callback": () => {
-          submit.disabled = true;
-          setStatus(status, copy.VERIFICATION_REQUIRED, true);
-        },
-        "error-callback": () => {
-          submit.disabled = true;
-          setStatus(status, copy.VERIFICATION_FAILED, true);
-        }
-      });
-    } catch {
-      setStatus(status, copy.CONFIG_UNAVAILABLE, true);
-      return;
-    }
+    const resetVerification = (preserveStatus = false) => {
+      preserveStatusAfterReset = preserveStatus;
+      verificationReady = false;
+      isSubmitting = false;
+      submit.disabled = true;
+      if (widgetId != null) window.turnstile?.reset(widgetId);
+    };
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (submit.disabled) return;
+      if (isSubmitting || hasSubmitted) return;
+
+      const token = form.querySelector(
+        'input[name="cf-turnstile-response"]'
+      )?.value;
+      if (!verificationReady || !token) {
+        resetVerification(true);
+        setStatus(status, copy.VERIFICATION_REQUIRED, true);
+        return;
+      }
+
+      preserveStatusAfterReset = false;
+      isSubmitting = true;
       submit.disabled = true;
       setStatus(status, copy.sending);
 
@@ -341,26 +343,66 @@
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.ok) {
           const message = copy[result.code] || copy.default;
+          resetVerification(true);
           setStatus(status, message, true);
-          window.turnstile?.reset(widgetId);
           return;
         }
 
+        hasSubmitted = true;
+        isSubmitting = false;
+        verificationReady = false;
         setStatus(status, copy.success);
         form.reset();
         delete form.dataset.inquiryIdempotencyKey;
         form.dataset.inquirySubmitted = "true";
         window.turnstile?.remove(widgetId);
       } catch {
+        resetVerification(true);
         setStatus(status, copy.default, true);
-        window.turnstile?.reset(widgetId);
       }
     });
+    if (pendingSubmitHandler) {
+      form.removeEventListener("submit", pendingSubmitHandler);
+    }
+
+    try {
+      const turnstile = await loadTurnstile();
+      widgetId = turnstile.render(widget, {
+        sitekey: config.turnstileSiteKey,
+        action: config.turnstileAction || "inquiry",
+        callback: () => {
+          verificationReady = true;
+          submit.disabled = isSubmitting || hasSubmitted;
+          if (!preserveStatusAfterReset) setStatus(status, copy.ready);
+        },
+        "expired-callback": () => {
+          verificationReady = false;
+          submit.disabled = true;
+          setStatus(status, copy.VERIFICATION_REQUIRED, true);
+        },
+        "error-callback": () => {
+          verificationReady = false;
+          submit.disabled = true;
+          setStatus(status, copy.VERIFICATION_FAILED, true);
+        }
+      });
+    } catch {
+      setStatus(status, copy.CONFIG_UNAVAILABLE, true);
+    }
   };
 
   const setup = async () => {
     const forms = [...document.querySelectorAll('form[action="/api/inquiry"]')];
     if (!forms.length) return;
+
+    const pendingSubmitHandlers = new Map();
+    forms.forEach((form) => {
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) submit.disabled = true;
+      const blockPendingSubmission = (event) => event.preventDefault();
+      pendingSubmitHandlers.set(form, blockPendingSubmission);
+      form.addEventListener("submit", blockPendingSubmission);
+    });
 
     let config;
     try {
@@ -386,7 +428,9 @@
       return;
     }
 
-    forms.forEach((form) => setupForm(form, config));
+    forms.forEach((form) =>
+      setupForm(form, config, pendingSubmitHandlers.get(form))
+    );
   };
 
   if (document.readyState === "loading") {

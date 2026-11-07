@@ -21,8 +21,17 @@ const TURNSTILE_TEST_SECRET_KEYS = new Set([
 const DEFAULT_PRODUCTION_HOSTNAMES = new Set(["chigox.com", "www.chigox.com"]);
 const RATE_LIMIT_WINDOW_SECONDS = 10 * 60;
 const RATE_LIMIT_MAX_REQUESTS = 5;
-const MAX_NOTIFICATION_ATTEMPTS = 8;
-const RETRY_DELAYS_MINUTES = [5, 15, 60, 180, 720, 1440, 2880, 4320];
+export const MAX_NOTIFICATION_ATTEMPTS = 8;
+export const RETRY_DELAYS_MINUTES = [
+  5,
+  15,
+  60,
+  180,
+  720,
+  1440,
+  2880,
+  4320
+];
 
 const FIELD_LIMITS = Object.freeze({
   name: 160,
@@ -560,11 +569,16 @@ const emailEnvironmentReady = (env) =>
       env?.INQUIRY_NOTIFICATION_TO
   );
 
+export const getNotificationRetryDelayMinutes = (attempts) =>
+  RETRY_DELAYS_MINUTES[
+    Math.min(
+      Math.max(Number(attempts || 1) - 1, 0),
+      RETRY_DELAYS_MINUTES.length - 1
+    )
+  ];
+
 const nextRetryAt = (attempts) => {
-  const delay =
-    RETRY_DELAYS_MINUTES[
-      Math.min(Math.max(attempts, 0), RETRY_DELAYS_MINUTES.length - 1)
-    ];
+  const delay = getNotificationRetryDelayMinutes(attempts);
   return new Date(Date.now() + delay * 60 * 1000).toISOString();
 };
 
@@ -584,9 +598,49 @@ async function markNotificationPending(env, inquiryId, attempts, errorCode) {
     .run();
 }
 
+async function markNotificationFailed(env, inquiryId, attempts, errorCode) {
+  const database = requireInquiryDatabase(env);
+  await database.prepare(
+    `UPDATE contact_inquiries
+     SET notification_status = 'notification_failed',
+         notification_attempts = ?,
+         notification_last_attempt_at = CURRENT_TIMESTAMP,
+         notification_next_attempt_at = NULL,
+         notification_last_error = ?,
+         notification_failed_at = CURRENT_TIMESTAMP,
+         updated_at = CURRENT_TIMESTAMP
+     WHERE inquiry_id = ?`
+  )
+    .bind(attempts, errorCode, inquiryId)
+    .run();
+}
+
+async function recordNotificationFailure(env, inquiryId, attempts, errorCode) {
+  if (attempts >= MAX_NOTIFICATION_ATTEMPTS) {
+    await markNotificationFailed(env, inquiryId, attempts, errorCode);
+    return "notification_failed";
+  }
+  await markNotificationPending(env, inquiryId, attempts, errorCode);
+  return "notification_pending";
+}
+
 export async function notifyInquiry(env, inquiry, fetchImpl = fetch) {
   if (inquiry.notificationStatus === "sent") {
     return { status: "sent", skipped: true };
+  }
+  if (inquiry.notificationStatus === "notification_failed") {
+    return { status: "notification_failed", skipped: true };
+  }
+
+  const currentAttempts = Number(inquiry.notificationAttempts || 0);
+  if (currentAttempts >= MAX_NOTIFICATION_ATTEMPTS) {
+    await markNotificationFailed(
+      env,
+      inquiry.inquiryId,
+      currentAttempts,
+      "MAX_NOTIFICATION_ATTEMPTS_REACHED"
+    );
+    return { status: "notification_failed" };
   }
 
   const database = requireInquiryDatabase(env);
@@ -605,18 +659,18 @@ export async function notifyInquiry(env, inquiry, fetchImpl = fetch) {
     .bind(inquiry.inquiryId)
     .run();
   if (Number(claim?.meta?.changes || 0) === 0) {
-    return { status: inquiry.notificationStatus || "sending", skipped: true };
+    return { status: "skipped", skipped: true };
   }
 
-  const attempts = Number(inquiry.notificationAttempts || 0) + 1;
+  const attempts = currentAttempts + 1;
   if (!emailEnvironmentReady(env)) {
-    await markNotificationPending(
+    const status = await recordNotificationFailure(
       env,
       inquiry.inquiryId,
       attempts,
       "EMAIL_NOT_CONFIGURED"
     );
-    return { status: "notification_pending" };
+    return { status };
   }
 
   try {
@@ -655,13 +709,13 @@ export async function notifyInquiry(env, inquiry, fetchImpl = fetch) {
       .run();
     return { status: "sent" };
   } catch (error) {
-    await markNotificationPending(
+    const status = await recordNotificationFailure(
       env,
       inquiry.inquiryId,
       attempts,
       compactText(error?.message || "EMAIL_SEND_FAILED").slice(0, 160)
     );
-    return { status: "notification_pending" };
+    return { status };
   }
 }
 
@@ -674,7 +728,7 @@ export async function retryPendingNotifications(
   const query = await database.prepare(
     `SELECT * FROM contact_inquiries
      WHERE (
-         notification_status IN ('pending', 'notification_pending')
+         notification_status = 'notification_pending'
          OR (
            notification_status = 'sending'
            AND updated_at <= datetime('now', '-15 minutes')
@@ -693,11 +747,15 @@ export async function retryPendingNotifications(
 
   let sent = 0;
   let pending = 0;
+  let failed = 0;
+  let skipped = 0;
   for (const row of query?.results || []) {
     try {
       const result = await notifyInquiry(env, rowToInquiry(row), fetchImpl);
       if (result.status === "sent") sent += 1;
       else if (result.status === "notification_pending") pending += 1;
+      else if (result.status === "notification_failed") failed += 1;
+      else skipped += 1;
     } catch (error) {
       pending += 1;
       console.error("[inquiry-notification-retry-item-failed]", {
@@ -706,7 +764,13 @@ export async function retryPendingNotifications(
       });
     }
   }
-  return { checked: (query?.results || []).length, sent, pending };
+  return {
+    checked: (query?.results || []).length,
+    sent,
+    pending,
+    failed,
+    skipped
+  };
 }
 
 const serviceConfiguration = (request, env) => {

@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test, { afterEach } from "node:test";
 
 import {
+  MAX_NOTIFICATION_ATTEMPTS,
+  getNotificationRetryDelayMinutes,
   onRequestGet,
   onRequestPost,
   retryPendingNotifications,
@@ -83,7 +85,10 @@ class MockD1 {
             status: "new",
             notification_status: "pending",
             notification_attempts: 0,
-            notification_next_attempt_at: null
+            notification_next_attempt_at: null,
+            notification_failed_at: null,
+            notification_last_error: null,
+            stale_sending: false
           });
           return { meta: { changes: 1 } };
         }
@@ -92,11 +97,18 @@ class MockD1 {
           const row = database.rows.find((candidate) => candidate.inquiry_id === values[0]);
           if (
             !row ||
-            !["pending", "notification_pending"].includes(row.notification_status)
+            !(
+              ["pending", "notification_pending"].includes(
+                row.notification_status
+              ) ||
+              (row.notification_status === "sending" && row.stale_sending)
+            )
           ) {
             return { meta: { changes: 0 } };
           }
           row.notification_status = "sending";
+          row.updated_at = new Date().toISOString();
+          row.stale_sending = false;
           return { meta: { changes: 1 } };
         }
 
@@ -121,6 +133,17 @@ class MockD1 {
           return { meta: { changes: 1 } };
         }
 
+        if (normalized.includes("SET notification_status = 'notification_failed'")) {
+          const [attempts, error, inquiryId] = values;
+          const row = database.rows.find((candidate) => candidate.inquiry_id === inquiryId);
+          row.notification_status = "notification_failed";
+          row.notification_attempts = attempts;
+          row.notification_next_attempt_at = null;
+          row.notification_last_error = error;
+          row.notification_failed_at = new Date().toISOString();
+          return { meta: { changes: 1 } };
+        }
+
         throw new Error(`Unhandled run SQL: ${normalized}`);
       },
       async first() {
@@ -136,15 +159,18 @@ class MockD1 {
           normalized.startsWith("SELECT * FROM contact_inquiries") &&
           normalized.includes("notification_attempts < ?")
         ) {
-          const [, limit] = values;
+          const [maxAttempts, limit] = values;
+          const now = Date.now();
           return {
             results: database.rows
               .filter(
                 (row) =>
-                  ["pending", "notification_pending"].includes(
-                    row.notification_status
-                  ) &&
-                  row.notification_attempts < values[0]
+                  (row.notification_status === "notification_pending" ||
+                    (row.notification_status === "sending" &&
+                      row.stale_sending)) &&
+                  row.notification_attempts < maxAttempts &&
+                  (!row.notification_next_attempt_at ||
+                    Date.parse(row.notification_next_attempt_at) <= now)
               )
               .slice(0, limit)
           };
@@ -208,7 +234,11 @@ const requestFor = (
 const configRequestFor = (url = "https://preview.example/api/inquiry") =>
   new Request(url, { headers: { accept: "application/json" } });
 
-const installFetch = ({ turnstileSuccess = true, resendSuccess = true } = {}) => {
+const installFetch = ({
+  turnstileSuccess = true,
+  resendSuccess = true,
+  resendDelayMs = 0
+} = {}) => {
   const calls = { turnstile: 0, resend: 0, resendHeaders: [] };
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).includes("siteverify")) {
@@ -222,6 +252,9 @@ const installFetch = ({ turnstileSuccess = true, resendSuccess = true } = {}) =>
     if (String(url).includes("api.resend.com")) {
       calls.resend += 1;
       calls.resendHeaders.push(options.headers);
+      if (resendDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, resendDelayMs));
+      }
       return resendSuccess
         ? Response.json({ id: "email-preview-1" })
         : Response.json({ message: "temporary failure" }, { status: 503 });
@@ -553,13 +586,125 @@ test("Resend failure keeps the inquiry and a retry sends it once", async () => {
   assert.equal(db.rows.length, 1);
   assert.equal(db.rows[0].notification_status, "notification_pending");
   assert.equal(failedCalls.resend, 1);
+  const firstRetryDelay =
+    Date.parse(db.rows[0].notification_next_attempt_at) - Date.now();
+  assert.ok(firstRetryDelay > 4.9 * 60 * 1000);
+  assert.ok(firstRetryDelay <= 5 * 60 * 1000);
 
   db.rows[0].notification_next_attempt_at = new Date(0).toISOString();
   const retryCalls = installFetch();
   const retry = await retryPendingNotifications(env);
-  assert.deepEqual(retry, { checked: 1, sent: 1, pending: 0 });
+  assert.deepEqual(retry, {
+    checked: 1,
+    sent: 1,
+    pending: 0,
+    failed: 0,
+    skipped: 0
+  });
   assert.equal(db.rows[0].notification_status, "sent");
   assert.equal(retryCalls.resend, 1);
+});
+
+test("notification retry delays start at five minutes and back off", () => {
+  assert.equal(getNotificationRetryDelayMinutes(1), 5);
+  assert.equal(getNotificationRetryDelayMinutes(2), 15);
+  assert.equal(getNotificationRetryDelayMinutes(3), 60);
+  assert.equal(getNotificationRetryDelayMinutes(4), 180);
+  assert.equal(getNotificationRetryDelayMinutes(5), 720);
+  assert.equal(getNotificationRetryDelayMinutes(6), 1440);
+  assert.equal(getNotificationRetryDelayMinutes(7), 2880);
+  assert.equal(getNotificationRetryDelayMinutes(8), 4320);
+});
+
+test("retry excludes untouched pending rows and recovers stale sending rows", async () => {
+  const db = new MockD1();
+  db.rows.push(
+    {
+      inquiry_id: "initial-pending",
+      notification_status: "pending",
+      notification_attempts: 0
+    },
+    {
+      inquiry_id: "stale-sending",
+      notification_status: "sending",
+      notification_attempts: 1,
+      stale_sending: true,
+      customer_name: "Test",
+      email: "test@example.com",
+      message: "Test",
+      product_code: "CGU-C"
+    }
+  );
+  const calls = installFetch();
+  const result = await retryPendingNotifications(baseEnv(db));
+
+  assert.equal(calls.resend, 1);
+  assert.equal(db.rows[0].notification_status, "pending");
+  assert.equal(db.rows[1].notification_status, "sent");
+  assert.deepEqual(result, {
+    checked: 1,
+    sent: 1,
+    pending: 0,
+    failed: 0,
+    skipped: 0
+  });
+});
+
+test("the eighth failed attempt becomes a permanent notification failure", async () => {
+  const db = new MockD1();
+  db.rows.push({
+    inquiry_id: "max-attempt-row",
+    notification_status: "notification_pending",
+    notification_attempts: MAX_NOTIFICATION_ATTEMPTS - 1,
+    notification_next_attempt_at: new Date(0).toISOString(),
+    customer_name: "Test",
+    email: "test@example.com",
+    message: "Test",
+    product_code: "CGU-C"
+  });
+  const calls = installFetch({ resendSuccess: false });
+  const result = await retryPendingNotifications(baseEnv(db));
+
+  assert.equal(calls.resend, 1);
+  assert.equal(db.rows[0].notification_status, "notification_failed");
+  assert.equal(db.rows[0].notification_attempts, MAX_NOTIFICATION_ATTEMPTS);
+  assert.equal(db.rows[0].notification_next_attempt_at, null);
+  assert.ok(db.rows[0].notification_failed_at);
+  assert.deepEqual(result, {
+    checked: 1,
+    sent: 0,
+    pending: 0,
+    failed: 1,
+    skipped: 0
+  });
+
+  const second = await retryPendingNotifications(baseEnv(db));
+  assert.equal(second.checked, 0);
+  assert.equal(calls.resend, 1);
+});
+
+test("concurrent retry tasks claim one row and send one email", async () => {
+  const db = new MockD1();
+  db.rows.push({
+    inquiry_id: "concurrent-row",
+    notification_status: "notification_pending",
+    notification_attempts: 1,
+    notification_next_attempt_at: new Date(0).toISOString(),
+    customer_name: "Test",
+    email: "test@example.com",
+    message: "Test",
+    product_code: "CGU-C"
+  });
+  const calls = installFetch({ resendDelayMs: 10 });
+  const env = baseEnv(db);
+  const results = await Promise.all([
+    retryPendingNotifications(env),
+    retryPendingNotifications(env)
+  ]);
+
+  assert.equal(calls.resend, 1);
+  assert.equal(db.rows[0].notification_status, "sent");
+  assert.equal(results.reduce((total, result) => total + result.sent, 0), 1);
 });
 
 test("retry endpoint requires its Preview secret", async () => {

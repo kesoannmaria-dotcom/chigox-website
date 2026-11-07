@@ -1,0 +1,17 @@
+name = "chigox-inquiry-retry"
+main = "src/index.js"
+compatibility_date = "2026-11-07"
+
+[env.preview]
+name = "chigox-inquiry-retry-preview"
+workers_dev = true
+
+[env.preview.vars]
+TARGET_RETRY_URL = "https://codex-inquiry-system-phase1.chigox-website.pages.dev/api/inquiry-retry"
+EXPECTED_PREVIEW_HOST = "codex-inquiry-system-phase1.chigox-website.pages.dev"
+
+[env.preview.triggers]
+crons = ["*/5 * * * *"]
+
+[env.preview.observability]
+enabled = true

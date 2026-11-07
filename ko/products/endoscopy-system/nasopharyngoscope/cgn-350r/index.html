@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>사양</span><h2>기술 사양</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>CHIGOX 모델</th><th>외경</th><th>작업 채널</th><th>작업 길이</th><th>시야각</th><th>초점 심도</th><th>선단 굴절</th><th>영상 해상도</th></tr></thead><tbody><tr><th>CGN-350R28</th><td>2.8 mm</td><td>1.2 mm</td><td>350 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td><td>HD 디지털 영상</td></tr><tr><th>CGN-350R38</th><td>3.8 mm</td><td>1.5 mm</td><td>350 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td><td>HD 디지털 영상</td></tr><tr><th>CGN-350R48</th><td>4.8 mm</td><td>2.2 mm</td><td>350 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td><td>HD 디지털 영상</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>표준 구성</h2><ul class="check-list"><li>재사용형 연성 비인두경</li><li>방수 캡</li><li>누수 테스터</li><li>세척 브러시</li><li>멸균 캡</li><li>사용자 설명서</li></ul></div><div><h2>옵션 액세서리</h2><ul class="check-list"><li>HD 내시경 프로세서</li><li>의료용 모니터</li><li>내시경 워크스테이션</li><li>의료용 카트</li><li>생검 겸자</li><li>영상 기록 시스템</li><li>관류 액세서리</li><li>멸균 트레이</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>견적 요청</span><h2>문의 양식</h2><p>시장, 적용 분야 및 원하는 구성을 알려주시면 CHIGOX 팀이 이메일로 연락드립니다.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>이름<input name="Name" required></label><label>이메일<input name="Email" type="email" required></label><label>회사<input name="Company"></label><label>제품<input name="Product" value="CGN-350R 시리즈 재사용형 연성 비인두경"></label><label class="full">메시지<textarea name="Message" rows="5" placeholder="적용 분야, 수량 및 목표 시장을 알려주세요."></textarea></label><button class="btn primary" type="submit">문의 보내기</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>견적 요청</span><h2>문의 양식</h2><p>시장, 적용 분야 및 원하는 구성을 알려주시면 CHIGOX 팀이 이메일로 연락드립니다.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGN-350R">
+    <label>이름<input name="name" required></label><label>이메일<input name="email" type="email" required></label><label>회사<input name="company"></label><label>제품<input name="product" value="CGN-350R 시리즈 재사용형 연성 비인두경"></label><label class="full">메시지<textarea name="message" rows="5" placeholder="적용 분야, 수량 및 목표 시장을 알려주세요." required></textarea></label><button class="btn primary" type="submit">문의 보내기</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="빠른 문의">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

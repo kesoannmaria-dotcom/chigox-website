@@ -92,6 +92,18 @@ const CGUC_LOCALES = [
   }
 ];
 
+const PRODUCT_MIGRATION_SAMPLES = [
+  ["en", "/products/plastic-surgery/cg-7c/", "CG-7C"],
+  ["es", "/es/products/ultrasound/handheld-ultrasound/linear-scanner/cgu-l/", "CGU-L"],
+  ["tr", "/tr/products/veterinary/endoscope-system/cgv-300/", "CGV-300H"],
+  ["de", "/de/products/video-laryngoscope/disposable-video-laryngoscope/bd-dp/", "Disposable Video Laryngoscope"],
+  ["it", "/it/products/endoscopy-system/bronchoscope/cgb-600r/", "CGB-600R"],
+  ["pl", "/pl/products/veterinary/x-ray-system/cgv-dr07/", "CGV-DR07"],
+  ["ko", "/ko/products/ultrasound/cart-ultrasound/cgvu-21-pro/", "CGVU-21 Pro"],
+  ["fr", "/fr/products/endoscopy-system/bronchoscope/disposable-flexible-bronchoscope/", "Disposable Flexible Bronchoscope"],
+  ["pt-BR", "/pt/products/video-laryngoscope/reusable-video-laryngoscope/reusable-system/", "Reusable Video Laryngoscope"]
+];
+
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -539,6 +551,52 @@ test("all nine CGU-C pages fit desktop and mobile viewports", async () => {
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
         true
+      );
+      await page.close();
+    }
+  }
+});
+
+test("migrated product samples preserve identifiers, images, and responsive layouts", async () => {
+  for (const [htmlLang, pagePath, productCode] of PRODUCT_MIGRATION_SAMPLES) {
+    for (const viewport of [
+      { width: 1440, height: 1000 },
+      { width: 390, height: 844 }
+    ]) {
+      const { page, posts } = await openForm({ pagePath });
+      await page.setViewportSize(viewport);
+      await page.locator('button[type="submit"]:not([disabled])').waitFor();
+
+      const form = page.locator("form.inquiry-form");
+      await form.scrollIntoViewIfNeeded();
+      assert.equal(await page.locator("html").getAttribute("lang"), htmlLang);
+      assert.equal(await form.getAttribute("action"), "/api/inquiry");
+      assert.equal(await form.locator('[name="product_code"]').inputValue(), productCode);
+      assert.equal(await form.locator('[name="message"]').getAttribute("required"), "");
+      assert.equal(
+        await page.locator('script[src="/assets/js/inquiry-turnstile.js"]').count(),
+        1
+      );
+      assert.equal(posts.length, 0);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        true
+      );
+      assert.deepEqual(
+        await page.locator("main img").evaluateAll((images) =>
+          images
+            .filter((image) => image.complete)
+            .map((image) => ({ src: image.getAttribute("src"), width: image.naturalWidth }))
+            .filter(({ src }) => src && !src.startsWith("data:"))
+            .map(({ width }) => width > 0)
+        ),
+        await page.locator("main img").evaluateAll((images) =>
+          images
+            .filter((image) => image.complete)
+            .map((image) => image.getAttribute("src"))
+            .filter((src) => src && !src.startsWith("data:"))
+            .map(() => true)
+        )
       );
       await page.close();
     }

@@ -176,8 +176,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Especificações</span><h2>Especificações técnicas</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Modelo CHIGOX</th><th>Diâmetro Externo</th><th>Canal de trabalho</th><th>Comprimento de trabalho</th><th>Campo de visão</th><th>Profundidade de campo</th><th>Deflexão da ponta</th></tr></thead><tbody><tr><th>CGB-600R28</th><td>2.8 mm</td><td>1.2 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R38</th><td>3.8 mm</td><td>1.8 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R48</th><td>4.8 mm</td><td>2.6 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R52</th><td>5.2 mm</td><td>3.0 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R58</th><td>5.8 mm</td><td>3.2 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>Configuração padrão</h2><ul class="check-list"><li>Broncoscópio Flexível</li><li>Tampa impermeável</li><li>Testador de vazamento</li><li>Escova de limpeza</li><li>Válvula de biópsia</li><li>Estojo de transporte</li><li>Manual do usuário</li></ul></div><div><h2>Acessórios opcionais</h2><ul class="check-list"><li>Fórceps de biópsia</li><li>Pinça de Corpo Estranho</li><li>Pincel de Citologia</li><li>Kit de limpeza</li><li>Estação de trabalho de endoscopia</li><li>Processador de vídeo</li><li>Monitor médico</li><li>Carrinho</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotação</span><h2>Formulário de consulta</h2><p>Compartilhe seu mercado, aplicação e configuração de destino. A equipe CHIGOX fará o acompanhamento por e-mail.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nome<input name="Name" required></label><label>E-mail<input name="Email" type="email" required></label><label>Empresa<input name="Company"></label><label>Produto<input name="Product" value="Broncoscópio flexível reutilizável CGB-600R Series"></label><label class="full">Mensagem<textarea name="Message" rows="5" placeholder="Diga-nos sua aplicação, quantidade e mercado-alvo."></textarea></label><button class="btn primary" type="submit">Enviar consulta</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotação</span><h2>Formulário de consulta</h2><p>Compartilhe seu mercado, aplicação e configuração de destino. A equipe CHIGOX fará o acompanhamento por e-mail.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGB-600R">
+    <label>Nome<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label>Empresa<input name="company"></label><label>Produto<input name="product" value="Broncoscópio flexível reutilizável CGB-600R Series"></label><label class="full">Mensagem<textarea name="message" rows="5" placeholder="Diga-nos sua aplicação, quantidade e mercado-alvo." required></textarea></label><button class="btn primary" type="submit">Enviar consulta</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Contato rápido">
@@ -213,6 +214,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

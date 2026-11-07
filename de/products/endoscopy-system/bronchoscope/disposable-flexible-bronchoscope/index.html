@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Spezifikationen</span><h2>Technische Daten</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Position</th><th>Spezifikation</th></tr></thead><tbody><tr><th>Produkttyp</th><td>Flexibles Einweg-Bronchoskop</td></tr><tr><th>Verfügbare Modelle</th><td>CHIGOX kontaktieren</td></tr><tr><th>Detaillierte Spezifikationen</th><td>Auf Anfrage erhältlich</td></tr></tbody></table></div><p class="endoscopy-category-note">Mit den Ausgangsmaterialien wurde kein separates technisches Datenblatt geliefert. Es wurden keine Parameter wiederverwendbarer Modelle auf dieses Einwegprodukt übertragen.</p></section>
   <section class="two-columns"><div><h2>Standardkonfiguration</h2><ul class="check-list"><li>Flexibles Einweg-Bronchoskop</li><li>Sterilverpackung</li><li>Benutzerhandbuch</li></ul></div><div><h2>Optionales Zubehör</h2><ul class="check-list"><li>Endoskopie-Videoprozessor</li><li>Medizinischer Monitor</li><li>Endoskopie-Arbeitsstation</li><li>Medizinischer Wagen</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Angebot anfordern</span><h2>Anfrageformular</h2><p>Teilen Sie uns Ihren Markt, Ihre Anwendung und die gewünschte Konfiguration mit. Das CHIGOX-Team meldet sich per E-Mail.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Name<input name="Name" required></label><label>E-Mail<input name="Email" type="email" required></label><label>Unternehmen<input name="Company"></label><label>Produkt<input name="Product" value="Flexibles Einweg-Bronchoskop"></label><label class="full">Nachricht<textarea name="Message" rows="5" placeholder="Nennen Sie uns Anwendung, Menge und Zielmarkt."></textarea></label><button class="btn primary" type="submit">Anfrage senden</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Angebot anfordern</span><h2>Anfrageformular</h2><p>Teilen Sie uns Ihren Markt, Ihre Anwendung und die gewünschte Konfiguration mit. Das CHIGOX-Team meldet sich per E-Mail.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="Disposable Flexible Bronchoscope">
+    <label>Name<input name="name" required></label><label>E-Mail<input name="email" type="email" required></label><label>Unternehmen<input name="company"></label><label>Produkt<input name="product" value="Flexibles Einweg-Bronchoskop"></label><label class="full">Nachricht<textarea name="message" rows="5" placeholder="Nennen Sie uns Anwendung, Menge und Zielmarkt." required></textarea></label><button class="btn primary" type="submit">Anfrage senden</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Schnellkontakt">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

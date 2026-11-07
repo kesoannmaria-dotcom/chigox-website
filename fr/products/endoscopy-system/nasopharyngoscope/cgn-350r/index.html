@@ -176,8 +176,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Spécifications</span><h2>Caractéristiques techniques</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Modèle CHIGOX</th><th>Diamètre extérieur</th><th>Canal de travail</th><th>Longueur de travail</th><th>Champ de vision</th><th>Profondeur de champ</th><th>Déviation de la pointe</th><th>Résolution de l'image</th></tr></thead><tbody><tr><th>CGN-350R28</th><td>2.8 mm</td><td>1.2 mm</td><td>350 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td><td>HD Imagerie numérique</td></tr><tr><th>CGN-350R38</th><td>3.8 mm</td><td>1.5 mm</td><td>350 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td><td>HD Imagerie numérique</td></tr><tr><th>CGN-350R48</th><td>4.8 mm</td><td>2.2 mm</td><td>350 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td><td>HD Imagerie numérique</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>Configuration standard</h2><ul class="check-list"><li>Nasopharyngoscope flexible réutilisable</li><li>Casquette étanche</li><li>Testeur de fuite</li><li>Brosse de nettoyage</li><li>Bouchon de stérilisation</li><li>Manuel d'utilisation</li></ul></div><div><h2>Accessoires en option</h2><ul class="check-list"><li>Processeur d'endoscopie HD</li><li>Moniteur médical</li><li>Poste de travail d'endoscopie</li><li>Chariot médical</li><li>Pince à biopsie</li><li>Système d'enregistrement d'images</li><li>Accessoires d'irrigation</li><li>Plateau de stérilisation</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Demander un devis</span><h2>Formulaire de demande</h2><p>Partagez votre marché, votre application et votre configuration cible. L'équipe CHIGOX assurera un suivi par e-mail.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nom<input name="Name" required></label><label>Courriel<input name="Email" type="email" required></label><label>Entreprise<input name="Company"></label><label>Produit<input name="Product" value="Nasopharyngoscope flexible réutilisable CGN-350R Series"></label><label class="full">Message<textarea name="Message" rows="5" placeholder="Dites-nous votre application, votre quantité et votre marché cible."></textarea></label><button class="btn primary" type="submit">Envoyer la demande</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Demander un devis</span><h2>Formulaire de demande</h2><p>Partagez votre marché, votre application et votre configuration cible. L'équipe CHIGOX assurera un suivi par e-mail.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGN-350R">
+    <label>Nom<input name="name" required></label><label>Courriel<input name="email" type="email" required></label><label>Entreprise<input name="company"></label><label>Produit<input name="product" value="Nasopharyngoscope flexible réutilisable CGN-350R Series"></label><label class="full">Message<textarea name="message" rows="5" placeholder="Dites-nous votre application, votre quantité et votre marché cible." required></textarea></label><button class="btn primary" type="submit">Envoyer la demande</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Contact rapide">
@@ -213,6 +214,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

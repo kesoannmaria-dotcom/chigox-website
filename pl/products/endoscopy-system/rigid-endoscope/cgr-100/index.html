@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Specyfikacja</span><h2>Dane techniczne</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Model CHIGOX</th><th>Zastosowanie</th><th>Średnica zewnętrzna</th><th>Długość robocza</th><th>Kierunek patrzenia</th><th>Pole widzenia</th><th>Autoklawowalny</th></tr></thead><tbody><tr><th>CGR-1800</th><td>Endoskop laryngologiczny</td><td>1.8 mm</td><td>100 / 175 mm</td><td>0°</td><td>70°</td><td>Tak</td></tr><tr><th>CGR-2700</th><td>Artroskop</td><td>2.7 mm</td><td>175 mm</td><td>0° / 30°</td><td>70°</td><td>Tak</td></tr><tr><th>CGR-4000</th><td>Artroskop</td><td>4.0 mm</td><td>175 mm</td><td>30° / 70°</td><td>70°</td><td>Tak</td></tr><tr><th>CGR-2703</th><td>Cystoskop</td><td>2.7 mm</td><td>300 mm</td><td>30°</td><td>70°</td><td>Tak</td></tr><tr><th>CGR-4003</th><td>Histeroskop</td><td>4.0 mm</td><td>300 mm</td><td>30°</td><td>70°</td><td>Tak</td></tr><tr><th>CGR-4007</th><td>Sinusoskop</td><td>4.0 mm</td><td>175 mm</td><td>70°</td><td>70°</td><td>Tak</td></tr><tr><th>CGR-1000</th><td>Laparoskop</td><td>10 mm</td><td>320 mm</td><td>0°</td><td>80°</td><td>Tak</td></tr><tr><th>CGR-1030</th><td>Laparoskop</td><td>10 mm</td><td>320 mm</td><td>30°</td><td>80°</td><td>Tak</td></tr></tbody></table></div><p class="endoscopy-category-note">Wraz z rozwojem oferty do tabeli mogą być dodawane kolejne modele endoskopów sztywnych.</p></section>
   <section class="two-columns"><div><h2>Konfiguracja standardowa</h2><ul class="check-list"><li>Endoskop sztywny</li><li>Nasadka ochronna</li><li>Instrukcja obsługi</li></ul></div><div><h2>Akcesoria opcjonalne</h2><ul class="check-list"><li>Głowica kamery HD</li><li>Źródło zimnego światła LED</li><li>Światłowodowy przewód oświetleniowy</li><li>Monitor medyczny</li><li>Procesor wideo</li><li>Stacja robocza do endoskopii</li><li>Wózek medyczny</li><li>Taca sterylizacyjna</li><li>Narzędzia endoskopowe</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Poproś o wycenę</span><h2>Formularz zapytania</h2><p>Podaj rynek, zastosowanie i oczekiwaną konfigurację. Zespół CHIGOX skontaktuje się z Tobą e-mailem.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Imię i nazwisko<input name="Name" required></label><label>E-mail<input name="Email" type="email" required></label><label>Firma<input name="Company"></label><label>Produkt<input name="Product" value="Endoskop sztywny serii CGR-100"></label><label class="full">Wiadomość<textarea name="Message" rows="5" placeholder="Podaj zastosowanie, ilość i rynek docelowy."></textarea></label><button class="btn primary" type="submit">Wyślij zapytanie</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Poproś o wycenę</span><h2>Formularz zapytania</h2><p>Podaj rynek, zastosowanie i oczekiwaną konfigurację. Zespół CHIGOX skontaktuje się z Tobą e-mailem.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGR-100">
+    <label>Imię i nazwisko<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label>Firma<input name="company"></label><label>Produkt<input name="product" value="Endoskop sztywny serii CGR-100"></label><label class="full">Wiadomość<textarea name="message" rows="5" placeholder="Podaj zastosowanie, ilość i rynek docelowy." required></textarea></label><button class="btn primary" type="submit">Wyślij zapytanie</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Szybki kontakt">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

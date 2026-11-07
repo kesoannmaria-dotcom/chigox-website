@@ -204,12 +204,13 @@
     </div>
   </article></div></section>
   <section aria-labelledby="procurement-faq"><div class="section-heading"><span>Perguntas frequentes sobre aquisições</span><h2 id="procurement-faq">Perguntas antes de solicitar um orçamento</h2></div><div class="band two-columns"><div><h3>Que informações devo fornecer ao solicitar uma cotação CGV-DR605?</h3><p>Inclua o país de destino, tipo de instalação, aplicação pretendida, quantidade e configuração alvo para que CHIGOX possa analisar a solicitação e preparar uma cotação relevante.</p><h3>O que está incluído na configuração padrão?</h3><p>A página atualmente lista um resumo da configuração. Peça à CHIGOX para confirmar o escopo final do fornecimento e os itens incluídos na cotação por escrito antes de fazer o pedido.</p><h3>Quais informações do site devem ser verificadas antes de fazer o pedido?</h3><p>Compartilhe o destino, tipo de instalação, fonte de alimentação disponível, acesso à sala ou restrições de espaço e fluxo de trabalho pretendido. CHIGOX pode então confirmar quais informações são necessárias para uma revisão de configuração.</p></div><div><h3>Os serviços de instalação, treinamento e pós-venda estão incluídos?</h3><p>Esses serviços não são assumidos. Inclua o país de destino e os requisitos de suporte em sua consulta. CHIGOX confirmará por escrito quais serviços, se houver, podem ser incluídos na cotação.</p><h3>Qual a diferença entre CGV-DR605 e CGV-DR2?</h3><p>CHIGOX apresenta CGV-DR605 como um sistema veterinário de arco em C e <a href="/pt/products/veterinary/x-ray-system/cgv-dr2/">CGV-DR2 como sistema de raios X veterinário portátil</a>. Solicite uma revisão da configuração para identificar a opção apropriada para o uso pretendido.</p><p><a class="text-link" href="/pt/products/veterinary/x-ray-system/">Veja todos os sistemas de raios X veterinários</a></p></div></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotação</span><h2>Formulário de consulta</h2><p>Compartilhe seu mercado, aplicação e configuração de destino. A equipe CHIGOX fará o acompanhamento por e-mail.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nome<input name="Name" required></label>
-    <label>E-mail<input name="Email" type="email" required></label>
-    <label>Empresa<input name="Company"></label>
-    <label>Produto<input name="Product" value="Sistema de raio X para cirurgia digital veterinária com braço em C CGV-DR605"></label>
-    <label class="full">Mensagem<textarea name="Message" rows="5" placeholder="Diga-nos sua aplicação, quantidade e mercado-alvo."></textarea></label>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotação</span><h2>Formulário de consulta</h2><p>Compartilhe seu mercado, aplicação e configuração de destino. A equipe CHIGOX fará o acompanhamento por e-mail.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGV-DR605">
+    <label>Nome<input name="name" required></label>
+    <label>E-mail<input name="email" type="email" required></label>
+    <label>Empresa<input name="company"></label>
+    <label>Produto<input name="product" value="Sistema de raio X para cirurgia digital veterinária com braço em C CGV-DR605"></label>
+    <label class="full">Mensagem<textarea name="message" rows="5" placeholder="Diga-nos sua aplicação, quantidade e mercado-alvo." required></textarea></label>
     <button class="btn primary" type="submit">Enviar consulta</button>
   </form></section></main>
   <aside class="floating-contact" aria-label="Contato rápido">
@@ -245,6 +246,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

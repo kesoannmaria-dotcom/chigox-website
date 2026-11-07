@@ -165,12 +165,14 @@ function localizeJsonLd(html, languageKey, catalog, sourceRoute) {
 
 function localizeTag(tag, languageKey, catalog, sourceRoute) {
   let output = tag.replace(/\b(href|src|action)="([^"]*)"/gi, (_, name, value) => `${name}="${localizeInternalUrl(value, languageKey, sourceRoute)}"`);
+  const isProductCodeInput = /^<input\b/i.test(output) && /\bname="product_code"/i.test(output);
   if (/^<link\b/i.test(output) && /\brel="canonical"/i.test(output)) {
     output = output.replace(/\bhref="[^"]*"/i, `href="${absoluteUrl(languageKey, sourceRoute)}"`);
   }
   output = output.replace(/\b([a-z-]+)="([^"]*)"/gi, (attribute, rawName, rawValue) => {
     const name = rawName.toLowerCase();
     if (!TRANSLATABLE_ATTRIBUTES.has(name)) return attribute;
+    if (isProductCodeInput && name === "value") return attribute;
     return `${rawName}="${translateValue(rawValue, catalog, `${languageKey}:${sourceRoute}:${name}`)}"`;
   });
   if (/^<meta\b/i.test(output)) {

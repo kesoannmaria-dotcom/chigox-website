@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Specifiche</span><h2>Specifiche tecniche</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Modello CHIGOX</th><th>Diametro esterno</th><th>Canale operativo</th><th>Lunghezza operativa</th><th>Campo visivo</th><th>Profondità di campo</th><th>Deflessione della punta</th><th>Risoluzione dell'immagine</th></tr></thead><tbody><tr><th>CGC-350R48</th><td>4.8 mm</td><td>2.2 mm</td><td>380 mm</td><td>120°</td><td>3–100 mm</td><td>Up210° / Down120°</td><td>Imaging digitale HD</td></tr><tr><th>CGC-350R52</th><td>5.2 mm</td><td>2.6 mm</td><td>380 mm</td><td>120°</td><td>3–100 mm</td><td>Up210° / Down120°</td><td>Imaging digitale HD</td></tr><tr><th>CGC-350R58</th><td>5.8 mm</td><td>3.0 mm</td><td>380 mm</td><td>120°</td><td>3–100 mm</td><td>Up210° / Down120°</td><td>Imaging digitale HD</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>Configurazione standard</h2><ul class="check-list"><li>Cistoscopio flessibile riutilizzabile</li><li>Tappo impermeabile</li><li>Tester di tenuta</li><li>Spazzola di pulizia</li><li>Tappo di sterilizzazione</li><li>Manuale utente</li></ul></div><div><h2>Accessori opzionali</h2><ul class="check-list"><li>Processore endoscopico HD</li><li>Monitor medicale</li><li>Workstation per endoscopia</li><li>Carrello medicale</li><li>Pinza da biopsia</li><li>Pompa di irrigazione</li><li>Sistema di registrazione immagini</li><li>Vassoio di sterilizzazione</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Richiedi un preventivo</span><h2>Modulo di richiesta</h2><p>Indicate mercato, applicazione e configurazione desiderata. Il team CHIGOX vi contatterà via e-mail.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nome<input name="Name" required></label><label>E-mail<input name="Email" type="email" required></label><label>Azienda<input name="Company"></label><label>Prodotto<input name="Product" value="Cistoscopio flessibile riutilizzabile serie CGC-350R"></label><label class="full">Messaggio<textarea name="Message" rows="5" placeholder="Indicate applicazione, quantità e mercato di destinazione."></textarea></label><button class="btn primary" type="submit">Invia richiesta</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Richiedi un preventivo</span><h2>Modulo di richiesta</h2><p>Indicate mercato, applicazione e configurazione desiderata. Il team CHIGOX vi contatterà via e-mail.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGC-350R">
+    <label>Nome<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label>Azienda<input name="company"></label><label>Prodotto<input name="product" value="Cistoscopio flessibile riutilizzabile serie CGC-350R"></label><label class="full">Messaggio<textarea name="message" rows="5" placeholder="Indicate applicazione, quantità e mercato di destinazione." required></textarea></label><button class="btn primary" type="submit">Invia richiesta</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Contatto rapido">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

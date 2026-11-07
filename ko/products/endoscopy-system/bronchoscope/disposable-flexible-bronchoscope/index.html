@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>사양</span><h2>기술 사양</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>항목</th><th>사양</th></tr></thead><tbody><tr><th>제품 유형</th><td>일회용 연성 기관지경</td></tr><tr><th>제공 모델</th><td>CHIGOX에 문의</td></tr><tr><th>상세 사양</th><td>요청 시 제공</td></tr></tbody></table></div><p class="endoscopy-category-note">원본 자료에는 별도의 기술 사양서가 제공되지 않았습니다. 재사용형 모델의 사양을 이 일회용 제품에 복사하지 않았습니다.</p></section>
   <section class="two-columns"><div><h2>표준 구성</h2><ul class="check-list"><li>일회용 연성 기관지경</li><li>멸균 포장</li><li>사용자 설명서</li></ul></div><div><h2>옵션 액세서리</h2><ul class="check-list"><li>내시경 비디오 프로세서</li><li>의료용 모니터</li><li>내시경 워크스테이션</li><li>의료용 카트</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>견적 요청</span><h2>문의 양식</h2><p>시장, 적용 분야 및 원하는 구성을 알려주시면 CHIGOX 팀이 이메일로 연락드립니다.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>이름<input name="Name" required></label><label>이메일<input name="Email" type="email" required></label><label>회사<input name="Company"></label><label>제품<input name="Product" value="일회용 연성 기관지경"></label><label class="full">메시지<textarea name="Message" rows="5" placeholder="적용 분야, 수량 및 목표 시장을 알려주세요."></textarea></label><button class="btn primary" type="submit">문의 보내기</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>견적 요청</span><h2>문의 양식</h2><p>시장, 적용 분야 및 원하는 구성을 알려주시면 CHIGOX 팀이 이메일로 연락드립니다.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="Disposable Flexible Bronchoscope">
+    <label>이름<input name="name" required></label><label>이메일<input name="email" type="email" required></label><label>회사<input name="company"></label><label>제품<input name="product" value="일회용 연성 기관지경"></label><label class="full">메시지<textarea name="message" rows="5" placeholder="적용 분야, 수량 및 목표 시장을 알려주세요." required></textarea></label><button class="btn primary" type="submit">문의 보내기</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="빠른 문의">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Specyfikacja</span><h2>Dane techniczne</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Model CHIGOX</th><th>Średnica zewnętrzna</th><th>Kanał roboczy</th><th>Długość robocza</th><th>Pole widzenia</th><th>Głębia ostrości</th><th>Zgięcie końcówki</th></tr></thead><tbody><tr><th>CGB-600R28</th><td>2.8 mm</td><td>1.2 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R38</th><td>3.8 mm</td><td>1.8 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R48</th><td>4.8 mm</td><td>2.6 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R52</th><td>5.2 mm</td><td>3.0 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr><tr><th>CGB-600R58</th><td>5.8 mm</td><td>3.2 mm</td><td>600 mm</td><td>120°</td><td>2–50 mm</td><td>Up180° / Down180°</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>Konfiguracja standardowa</h2><ul class="check-list"><li>Bronchoskop giętki</li><li>Korek wodoszczelny</li><li>Tester szczelności</li><li>Szczoteczka do czyszczenia</li><li>Zawór biopsyjny</li><li>Walizka transportowa</li><li>Instrukcja obsługi</li></ul></div><div><h2>Akcesoria opcjonalne</h2><ul class="check-list"><li>Kleszczyki biopsyjne</li><li>Kleszczyki do ciał obcych</li><li>Szczoteczka cytologiczna</li><li>Zestaw do czyszczenia</li><li>Stacja robocza do endoskopii</li><li>Procesor wideo</li><li>Monitor medyczny</li><li>Wózek</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Poproś o wycenę</span><h2>Formularz zapytania</h2><p>Podaj rynek, zastosowanie i oczekiwaną konfigurację. Zespół CHIGOX skontaktuje się z Tobą e-mailem.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Imię i nazwisko<input name="Name" required></label><label>E-mail<input name="Email" type="email" required></label><label>Firma<input name="Company"></label><label>Produkt<input name="Product" value="Wielorazowy bronchoskop giętki serii CGB-600R"></label><label class="full">Wiadomość<textarea name="Message" rows="5" placeholder="Podaj zastosowanie, ilość i rynek docelowy."></textarea></label><button class="btn primary" type="submit">Wyślij zapytanie</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Poproś o wycenę</span><h2>Formularz zapytania</h2><p>Podaj rynek, zastosowanie i oczekiwaną konfigurację. Zespół CHIGOX skontaktuje się z Tobą e-mailem.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGB-600R">
+    <label>Imię i nazwisko<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label>Firma<input name="company"></label><label>Produkt<input name="product" value="Wielorazowy bronchoskop giętki serii CGB-600R"></label><label class="full">Wiadomość<textarea name="message" rows="5" placeholder="Podaj zastosowanie, ilość i rynek docelowy." required></textarea></label><button class="btn primary" type="submit">Wyślij zapytanie</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Szybki kontakt">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Teknik bilgiler</span><h2>Teknik özellikler</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>CHIGOX Modeli</th><th>Dış çap</th><th>Çalışma kanalı</th><th>Çalışma uzunluğu</th><th>Görüş alanı</th><th>Alan derinliği</th><th>Uç açılanması</th><th>Görüntü çözünürlüğü</th></tr></thead><tbody><tr><th>CGC-350D48</th><td>4.8 mm</td><td>2.2 mm</td><td>380 mm</td><td>120°</td><td>3–100 mm</td><td>Up210° / Down120°</td><td>HD dijital görüntüleme</td></tr><tr><th>CGC-350D52</th><td>5.2 mm</td><td>2.6 mm</td><td>380 mm</td><td>120°</td><td>3–100 mm</td><td>Up210° / Down120°</td><td>HD dijital görüntüleme</td></tr><tr><th>CGC-350D58</th><td>5.8 mm</td><td>3.0 mm</td><td>380 mm</td><td>120°</td><td>3–100 mm</td><td>Up210° / Down120°</td><td>HD dijital görüntüleme</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>Standart konfigürasyon</h2><ul class="check-list"><li>Tek kullanımlık esnek sistoskop</li><li>Steril ambalaj</li><li>Kullanım kılavuzu</li></ul></div><div><h2>Opsiyonel aksesuarlar</h2><ul class="check-list"><li>HD endoskopi işlemcisi</li><li>Medikal monitör</li><li>Endoskopi iş istasyonu</li><li>Medikal araba</li><li>Biyopsi forsepsi</li><li>İrrigasyon pompası</li><li>Kayıt sistemi</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Teklif isteyin</span><h2>Talep formu</h2><p>Pazarınızı, uygulamanızı ve hedef konfigürasyonu paylaşın. CHIGOX ekibi e-posta ile sizinle iletişime geçecektir.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Ad<input name="Name" required></label><label>E-posta<input name="Email" type="email" required></label><label>Şirket<input name="Company"></label><label>Ürün<input name="Product" value="CGC-350D Serisi tek kullanımlık esnek sistoskop"></label><label class="full">Mesaj<textarea name="Message" rows="5" placeholder="Uygulamanızı, miktarı ve hedef pazarı belirtin."></textarea></label><button class="btn primary" type="submit">Talep gönder</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Teklif isteyin</span><h2>Talep formu</h2><p>Pazarınızı, uygulamanızı ve hedef konfigürasyonu paylaşın. CHIGOX ekibi e-posta ile sizinle iletişime geçecektir.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGC-350D">
+    <label>Ad<input name="name" required></label><label>E-posta<input name="email" type="email" required></label><label>Şirket<input name="company"></label><label>Ürün<input name="product" value="CGC-350D Serisi tek kullanımlık esnek sistoskop"></label><label class="full">Mesaj<textarea name="message" rows="5" placeholder="Uygulamanızı, miktarı ve hedef pazarı belirtin." required></textarea></label><button class="btn primary" type="submit">Talep gönder</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Hızlı iletişim">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

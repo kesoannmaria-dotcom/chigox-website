@@ -1,7 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  ensureInquiryClientScript,
+  migrateProductInquiryHtml,
+  productIdentifierForKey,
+  renderProductInquiryForm
+} from "./inquiry/product-inquiry.mjs";
 
 const root = process.cwd();
+const rebuildPages = process.argv.includes("--rebuild-pages");
+const rebuildNavigation = process.argv.includes("--rebuild-navigation");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const write = (file, content) => {
   const target = path.join(root, file);
@@ -292,6 +300,19 @@ function productMain(slug, p) {
   const gallery = p.images.length
     ? `<section class="product-images"><div class="section-heading"><span>Images</span><h2>Product Images</h2></div><div class="product-image-gallery">${p.images.map((img, i) => `<figure><img src="${imageBase}${img}" alt="${p.title} image ${i + 1}" loading="lazy" decoding="async"></figure>`).join("")}</div></section>`
     : `<section><div class="pending-image-note">Product imagery has not yet been supplied for this model. The verified technical information is shown below.</div></section>`;
+  const inquiryForm = renderProductInquiryForm({
+    identifier: productIdentifierForKey(slug),
+    labels: {
+      name: "Name",
+      email: "Email",
+      company: "Company",
+      product: "Product",
+      message: "Message"
+    },
+    productValue: p.title,
+    placeholder: "Tell us your application, quantity, and target market.",
+    buttonLabel: "Send Inquiry"
+  });
   return `<main>
   <section class="${heroClass}">
     <div><p class="eyebrow">${p.type}</p><h1>${p.title}</h1><p>${p.summary}</p><div class="badges"><span>Human Use</span></div><a class="btn primary" href="#inquiry">Request Quote</a></div>
@@ -304,13 +325,18 @@ function productMain(slug, p) {
   </section>
   <section class="band"><div class="section-heading"><span>Specifications</span><h2>Technical Specifications</h2></div>${table(p)}</section>
   <section class="two-columns"><div><h2>Standard Configuration</h2>${list(p.standard)}</div><div><h2>Optional Accessories</h2>${list(p.optional)}</div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Request Quote</span><h2>Inquiry Form</h2><p>Share your market, application, and target configuration. The CHIGOX team will follow up by email.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Name<input name="Name" required></label><label>Email<input name="Email" type="email" required></label><label>Company<input name="Company"></label><label>Product<input name="Product" value="${p.title}"></label><label class="full">Message<textarea name="Message" rows="5" placeholder="Tell us your application, quantity, and target market."></textarea></label><button class="btn primary" type="submit">Send Inquiry</button>
-  </form></section>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Request Quote</span><h2>Inquiry Form</h2><p>Share your market, application, and target configuration. The CHIGOX team will follow up by email.</p></div></div>${inquiryForm}</section>
 </main>`;
 }
 
 function makeProductPage(slug, p) {
+  const file = `products/endoscopy-system/${p.category}/${slug}/index.html`;
+  if (!rebuildPages && fs.existsSync(path.join(root, file))) {
+    const current = read(file);
+    const migrated = migrateProductInquiryHtml(current, productIdentifierForKey(slug));
+    if (migrated !== current) write(file, migrated);
+    return;
+  }
   const url = `https://www.chigox.com/products/endoscopy-system/${p.category}/${slug}/`;
   let html = addStylesheet(detailTemplate)
     .replace(/<title>.*?<\/title>/, `<title>${p.title} | CHIGOX</title>`)
@@ -321,7 +347,10 @@ function makeProductPage(slug, p) {
     .replace(/<meta property="og:url" content=".*?">/, `<meta property="og:url" content="${url}">`)
     .replace(/<meta property="og:image" content=".*?">/, `<meta property="og:image" content="${p.images.length ? `https://www.chigox.com/assets/products/endoscopy/${p.images[0]}` : "https://www.chigox.com/assets/og/chigox-og.svg"}">`)
     .replace(/<main>[\s\S]*?<\/main>/, productMain(slug, p));
-  write(`products/endoscopy-system/${p.category}/${slug}/index.html`, html);
+  write(
+    file,
+    ensureInquiryClientScript(html)
+  );
 }
 
 function categoryMain(category) {
@@ -336,6 +365,8 @@ function categoryMain(category) {
 }
 
 function makeCategoryPage(category) {
+  const file = `products/endoscopy-system/${category.slug}/index.html`;
+  if (!rebuildPages && fs.existsSync(path.join(root, file))) return;
   const url = `https://www.chigox.com/products/endoscopy-system/${category.slug}/`;
   let html = categoryTemplate
     .replace(/<title>.*?<\/title>/, `<title>${category.name} | CHIGOX Products</title>`)
@@ -345,14 +376,20 @@ function makeCategoryPage(category) {
     .replace(/<meta property="og:description" content=".*?">/, `<meta property="og:description" content="${category.description}">`)
     .replace(/<meta property="og:url" content=".*?">/, `<meta property="og:url" content="${url}">`)
     .replace(/<main>[\s\S]*?<\/main>/, categoryMain(category));
-  write(`products/endoscopy-system/${category.slug}/index.html`, html);
+  write(file, html);
 }
 
 for (const category of categories) makeCategoryPage(category);
 for (const [slug, product] of Object.entries(products)) makeProductPage(slug, product);
 
+const cge100File = "products/endoscopy-system/endoscope-system/cge-100/index.html";
+if (fs.existsSync(path.join(root, cge100File))) {
+  const current = read(cge100File);
+  const migrated = migrateProductInquiryHtml(current, productIdentifierForKey("cge-100"));
+  if (migrated !== current) write(cge100File, migrated);
+}
+
 const topCategoryFile = "products/endoscopy-system/index.html";
-let topCategory = read(topCategoryFile);
 const categoryOrder = [
   { slug: "endoscope-system", name: "Endoscope System", count: 1 },
   { slug: "bronchoscope", name: "Bronchoscope" },
@@ -361,16 +398,19 @@ const categoryOrder = [
   { slug: "ureteroscope", name: "Ureteroscope" },
   { slug: "rigid-endoscope", name: "Rigid endoscope" },
 ];
-const categoryCards = categoryOrder.map((item) => {
-  const category = categories.find((entry) => entry.slug === item.slug);
-  const count = item.count ?? category.products.length;
-  return `<a class="category-tile" href="../../products/endoscopy-system/${item.slug}/"><span>${item.name}</span><p>${count} ${count === 1 ? "product" : "products"}</p></a>`;
-}).join("");
-topCategory = topCategory.replace(
-  /<section><div class="section-heading"><span>Subcategories<\/span><h2>Endoscopy System Subcategories<\/h2><\/div><div class="category-grid">[\s\S]*?<\/div><\/section>/,
-  `<section><div class="section-heading"><span>Subcategories</span><h2>Endoscopy System Subcategories</h2></div><div class="category-grid">${categoryCards}</div></section>`,
-);
-write(topCategoryFile, topCategory);
+if (rebuildNavigation) {
+  let topCategory = read(topCategoryFile);
+  const categoryCards = categoryOrder.map((item) => {
+    const category = categories.find((entry) => entry.slug === item.slug);
+    const count = item.count ?? category.products.length;
+    return `<a class="category-tile" href="../../products/endoscopy-system/${item.slug}/"><span>${item.name}</span><p>${count} ${count === 1 ? "product" : "products"}</p></a>`;
+  }).join("");
+  topCategory = topCategory.replace(
+    /<section><div class="section-heading"><span>Subcategories<\/span><h2>Endoscopy System Subcategories<\/h2><\/div><div class="category-grid">[\s\S]*?<\/div><\/section>/,
+    `<section><div class="section-heading"><span>Subcategories</span><h2>Endoscopy System Subcategories</h2></div><div class="category-grid">${categoryCards}</div></section>`,
+  );
+  write(topCategoryFile, topCategory);
+}
 
 const localizedRoots = new Set(["es", "tr", "de", "it", "pl", "ko"]);
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -380,19 +420,22 @@ const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entr
   return entry.isDirectory() ? walk(path.join(dir, entry.name)) : entry.name.endsWith(".html") ? [path.join(dir, entry.name)] : [];
 });
 
-const pages = walk(root);
-for (const file of pages) {
-  let html = fs.readFileSync(file, "utf8");
-  const addedLabels = ["Bronchoscope", "Ureteroscope", "Cystoscope", "Nasopharyngoscope", "Rigid Endoscope", "Rigid endoscope"];
-  for (const label of addedLabels) {
-    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    html = html.replace(new RegExp(`<div class="product-menu-subgroup"><span>${escaped}<\\/span><ul>[\\s\\S]*?<\\/ul><\\/div>`, "g"), "");
+if (rebuildNavigation) {
+  const pages = walk(root);
+  for (const file of pages) {
+    let html = fs.readFileSync(file, "utf8");
+    const addedLabels = ["Bronchoscope", "Ureteroscope", "Cystoscope", "Nasopharyngoscope", "Rigid Endoscope", "Rigid endoscope"];
+    for (const label of addedLabels) {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      html = html.replace(new RegExp(`<div class="product-menu-subgroup"><span>${escaped}<\\/span><ul>[\\s\\S]*?<\\/ul><\\/div>`, "g"), "");
+    }
+    html = html.replace(
+      /(<div class="product-menu-subgroup">\s*<span>Endoscope System<\/span>\s*<ul><li><a href="([^"]*?)products\/endoscopy-system\/endoscope-system\/cge-100\/">CGE-100 Full HD Medical Endoscopy Solution<\/a><\/li><\/ul>\s*<\/div>)/,
+      (_, original, prefix) => `${original}<div class="product-menu-subgroup"><span>Bronchoscope</span><ul><li><a href="${prefix}products/endoscopy-system/bronchoscope/cgb-600r/">Reusable Bronchoscope</a></li><li><a href="${prefix}products/endoscopy-system/bronchoscope/disposable-flexible-bronchoscope/">Disposable Bronchoscope</a></li></ul></div><div class="product-menu-subgroup"><span>Cystoscope</span><ul><li><a href="${prefix}products/endoscopy-system/cystoscope/cgc-350r/">Reusable Cystoscope</a></li><li><a href="${prefix}products/endoscopy-system/cystoscope/cgc-350d/">Disposable Cystoscope</a></li></ul></div><div class="product-menu-subgroup"><span>Nasopharyngoscope</span><ul><li><a href="${prefix}products/endoscopy-system/nasopharyngoscope/cgn-350r/">Reusable Nasopharyngoscope</a></li><li><a href="${prefix}products/endoscopy-system/nasopharyngoscope/cgn-350d/">Disposable Nasopharyngoscope</a></li></ul></div><div class="product-menu-subgroup"><span>Ureteroscope</span><ul><li><a href="${prefix}products/endoscopy-system/ureteroscope/cgu-750r/">Reusable Ureteroscope</a></li><li><a href="${prefix}products/endoscopy-system/ureteroscope/cgu-650d/">Disposable Ureteroscope</a></li></ul></div><div class="product-menu-subgroup"><span>Rigid endoscope</span><ul><li><a href="${prefix}products/endoscopy-system/rigid-endoscope/cgr-100/">Rigid Endoscope Series</a></li></ul></div>`,
+    );
+    fs.writeFileSync(file, html);
   }
-  html = html.replace(
-    /(<div class="product-menu-subgroup">\s*<span>Endoscope System<\/span>\s*<ul><li><a href="([^"]*?)products\/endoscopy-system\/endoscope-system\/cge-100\/">CGE-100 Full HD Medical Endoscopy Solution<\/a><\/li><\/ul>\s*<\/div>)/,
-    (_, original, prefix) => `${original}<div class="product-menu-subgroup"><span>Bronchoscope</span><ul><li><a href="${prefix}products/endoscopy-system/bronchoscope/cgb-600r/">Reusable Bronchoscope</a></li><li><a href="${prefix}products/endoscopy-system/bronchoscope/disposable-flexible-bronchoscope/">Disposable Bronchoscope</a></li></ul></div><div class="product-menu-subgroup"><span>Cystoscope</span><ul><li><a href="${prefix}products/endoscopy-system/cystoscope/cgc-350r/">Reusable Cystoscope</a></li><li><a href="${prefix}products/endoscopy-system/cystoscope/cgc-350d/">Disposable Cystoscope</a></li></ul></div><div class="product-menu-subgroup"><span>Nasopharyngoscope</span><ul><li><a href="${prefix}products/endoscopy-system/nasopharyngoscope/cgn-350r/">Reusable Nasopharyngoscope</a></li><li><a href="${prefix}products/endoscopy-system/nasopharyngoscope/cgn-350d/">Disposable Nasopharyngoscope</a></li></ul></div><div class="product-menu-subgroup"><span>Ureteroscope</span><ul><li><a href="${prefix}products/endoscopy-system/ureteroscope/cgu-750r/">Reusable Ureteroscope</a></li><li><a href="${prefix}products/endoscopy-system/ureteroscope/cgu-650d/">Disposable Ureteroscope</a></li></ul></div><div class="product-menu-subgroup"><span>Rigid endoscope</span><ul><li><a href="${prefix}products/endoscopy-system/rigid-endoscope/cgr-100/">Rigid Endoscope Series</a></li></ul></div>`,
-  );
-  fs.writeFileSync(file, html);
 }
 
-console.log(`Generated ${categories.length} category pages and ${Object.keys(products).length} product pages.`);
+console.log(`Updated ${Object.keys(products).length + 1} canonical Endoscopy product inquiry forms.`);
+console.log(`Full page rebuild: ${rebuildPages ? "enabled" : "disabled"}. Navigation rebuild: ${rebuildNavigation ? "enabled" : "disabled"}.`);

@@ -176,8 +176,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Especificações</span><h2>Especificações técnicas</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Artigo</th><th>Especificação</th></tr></thead><tbody><tr><th>Tipo de produto</th><td>Broncoscópio flexível descartável</td></tr><tr><th>Modelos Disponíveis</th><td>Entre em contato com CHIGOX</td></tr><tr><th>Especificações detalhadas</th><td>Disponível mediante solicitação</td></tr></tbody></table></div><p class="endoscopy-category-note">Um documento de especificações técnicas separado não foi fornecido com os materiais de origem. Nenhum parâmetro de modelo reutilizável foi copiado para este produto descartável.</p></section>
   <section class="two-columns"><div><h2>Configuração padrão</h2><ul class="check-list"><li>Broncoscópio flexível descartável</li><li>Embalagem estéril</li><li>Manual do usuário</li></ul></div><div><h2>Acessórios opcionais</h2><ul class="check-list"><li>Processador de vídeo para endoscopia</li><li>Monitor médico</li><li>Estação de trabalho de endoscopia</li><li>Carrinho Médico</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotação</span><h2>Formulário de consulta</h2><p>Compartilhe seu mercado, aplicação e configuração de destino. A equipe CHIGOX fará o acompanhamento por e-mail.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nome<input name="Name" required></label><label>E-mail<input name="Email" type="email" required></label><label>Empresa<input name="Company"></label><label>Produto<input name="Product" value="Broncoscópio flexível descartável"></label><label class="full">Mensagem<textarea name="Message" rows="5" placeholder="Diga-nos sua aplicação, quantidade e mercado-alvo."></textarea></label><button class="btn primary" type="submit">Enviar consulta</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotação</span><h2>Formulário de consulta</h2><p>Compartilhe seu mercado, aplicação e configuração de destino. A equipe CHIGOX fará o acompanhamento por e-mail.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="Disposable Flexible Bronchoscope">
+    <label>Nome<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label>Empresa<input name="company"></label><label>Produto<input name="product" value="Broncoscópio flexível descartável"></label><label class="full">Mensagem<textarea name="message" rows="5" placeholder="Diga-nos sua aplicação, quantidade e mercado-alvo." required></textarea></label><button class="btn primary" type="submit">Enviar consulta</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Contato rápido">
@@ -213,6 +214,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

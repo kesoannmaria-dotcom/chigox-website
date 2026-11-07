@@ -181,8 +181,9 @@
   </section>
   <section class="band"><div class="section-heading"><span>Especificaciones</span><h2>Especificaciones técnicas</h2></div><div class="endoscopy-spec-wrap"><table class="spec-table"><thead><tr><th>Modelo CHIGOX</th><th>Diámetro exterior</th><th>Canal de trabajo</th><th>Longitud de trabajo</th><th>Campo de visión</th><th>Profundidad de campo</th><th>Deflexión distal</th><th>Resolución de imagen</th></tr></thead><tbody><tr><th>CGU-650D20</th><td>2.0 mm</td><td>0.8 mm</td><td>650 mm</td><td>90°</td><td>2–50 mm</td><td>Up300° / Down300°</td><td>400 × 400</td></tr><tr><th>CGU-650D22</th><td>2.2 mm</td><td>1.2 mm</td><td>650 mm</td><td>90°</td><td>2–50 mm</td><td>Up300° / Down300°</td><td>400 × 400</td></tr><tr><th>CGU-650D25</th><td>2.5 mm</td><td>1.2 mm</td><td>650 mm</td><td>90°</td><td>2–50 mm</td><td>Up275° / Down275°</td><td>400 × 400</td></tr><tr><th>CGU-650D28</th><td>2.8 mm</td><td>1.2 mm</td><td>650 mm</td><td>90°</td><td>2–50 mm</td><td>Up275° / Down275°</td><td>400 × 400</td></tr></tbody></table></div></section>
   <section class="two-columns"><div><h2>Configuración estándar</h2><ul class="check-list"><li>Ureteroscopio flexible desechable</li><li>Envase estéril</li><li>Manual del usuario</li></ul></div><div><h2>Accesorios opcionales</h2><ul class="check-list"><li>Procesador de video para endoscopia</li><li>Monitor médico</li><li>Estación de trabajo de endoscopia</li><li>Carro médico</li><li>Cesta para extracción de cálculos</li><li>Pinzas de biopsia</li><li>Bomba de irrigación</li><li>Fuente de luz, si la requiere el sistema</li></ul></div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotización</span><h2>Formulario de consulta</h2><p>Comparta su mercado, aplicación y configuración objetivo. El equipo de CHIGOX le responderá por correo electrónico.</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>Nombre<input name="Name" required></label><label>Correo electrónico<input name="Email" type="email" required></label><label>Empresa<input name="Company"></label><label>Producto<input name="Product" value="Ureteroscopio flexible desechable de la serie CGU-650D"></label><label class="full">Mensaje<textarea name="Message" rows="5" placeholder="Indíquenos su aplicación, cantidad y mercado objetivo."></textarea></label><button class="btn primary" type="submit">Enviar consulta</button>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>Solicitar cotización</span><h2>Formulario de consulta</h2><p>Comparta su mercado, aplicación y configuración objetivo. El equipo de CHIGOX le responderá por correo electrónico.</p></div></div><form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
+    <input type="hidden" name="product_code" value="CGU-650D">
+    <label>Nombre<input name="name" required></label><label>Correo electrónico<input name="email" type="email" required></label><label>Empresa<input name="company"></label><label>Producto<input name="product" value="Ureteroscopio flexible desechable de la serie CGU-650D"></label><label class="full">Mensaje<textarea name="message" rows="5" placeholder="Indíquenos su aplicación, cantidad y mercado objetivo." required></textarea></label><button class="btn primary" type="submit">Enviar consulta</button>
   </form></section>
 </main>
   <aside class="floating-contact" aria-label="Contacto rápido">
@@ -219,6 +220,7 @@
       </ul>
     </div>
   </footer>
+  <script src="/assets/js/inquiry-turnstile.js" defer></script>
   <script>
 (() => {
   const carousel = document.querySelector(".hero-carousel");

@@ -1,7 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
+import {
+  ensureInquiryClientScript,
+  migrateProductInquiryHtml,
+  productIdentifierForKey,
+  renderProductInquiryForm
+} from "./inquiry/product-inquiry.mjs";
 
 const root = process.cwd();
+const rebuildPages = process.argv.includes("--rebuild-pages");
+const rebuildNavigation = process.argv.includes("--rebuild-navigation");
+const rebuildSeo = process.argv.includes("--rebuild-seo");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 const write = (file, content) => {
   const target = path.join(root, file);
@@ -726,6 +735,19 @@ const renderProductMain = (lang, slug, product) => {
   const gallery = `<section class="product-images"><div class="section-heading"><span>${ui.images}</span><h2>${ui.productImages}</h2></div><div class="product-image-gallery">${product.images.map((image, index) => `<figure><img src="${imageBase}${image}" alt="${escapeHtml(title)} ${ui.images.toLowerCase()} ${index + 1}" loading="lazy" decoding="async"></figure>`).join("")}</div></section>`;
   const model = product.model === "Contact CHIGOX" ? specReplacements[lang]["Contact CHIGOX"] : product.model;
   const spec = translateSpec(getEnglishSpec(slug, product), lang, slug);
+  const inquiryForm = renderProductInquiryForm({
+    identifier: productIdentifierForKey(slug),
+    labels: {
+      name: ui.name,
+      email: ui.email,
+      company: ui.company,
+      product: ui.product,
+      message: ui.message
+    },
+    productValue: title,
+    placeholder: ui.placeholder,
+    buttonLabel: ui.sendInquiry
+  });
   return `<main>
   <section class="product-hero">
     <div><p class="eyebrow">${productType}</p><h1>${title}</h1><p>${summary}</p><div class="badges"><span>${ui.humanUse}</span>${variantLabel ? `<span>${variantLabel}</span>` : ""}</div><a class="btn primary" href="#inquiry">${ui.requestQuote}</a></div>
@@ -738,9 +760,7 @@ const renderProductMain = (lang, slug, product) => {
   </section>
   <section class="band"><div class="section-heading"><span>${ui.specifications}</span><h2>${ui.technicalSpecifications}</h2></div>${spec}</section>
   <section class="two-columns"><div><h2>${ui.standardConfiguration}</h2>${list(product.standard.map((key) => accessoryLabels[key][lang]))}</div><div><h2>${ui.optionalAccessories}</h2>${list(product.optional.map((key) => accessoryLabels[key][lang]))}</div></section>
-  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>${ui.requestQuote}</span><h2>${ui.inquiryForm}</h2><p>${ui.inquiryIntro}</p></div></div><form class="inquiry-form" action="mailto:info@chigox.com" method="post" enctype="text/plain">
-    <label>${ui.name}<input name="Name" required></label><label>${ui.email}<input name="Email" type="email" required></label><label>${ui.company}<input name="Company"></label><label>${ui.product}<input name="Product" value="${escapeHtml(title)}"></label><label class="full">${ui.message}<textarea name="Message" rows="5" placeholder="${escapeHtml(ui.placeholder)}"></textarea></label><button class="btn primary" type="submit">${ui.sendInquiry}</button>
-  </form></section>
+  <section id="inquiry" class="inquiry-section"><div><div class="section-heading"><span>${ui.requestQuote}</span><h2>${ui.inquiryForm}</h2><p>${ui.inquiryIntro}</p></div></div>${inquiryForm}</section>
 </main>`;
 };
 
@@ -874,36 +894,59 @@ for (const lang of languageCodes) {
 
   for (const category of categoryOrder.filter(({ slug }) => slug !== "endoscope-system")) {
     const route = `products/endoscopy-system/${category.slug}`;
+    const file = `${lang}/${route}/index.html`;
+    if (!rebuildPages && fs.existsSync(path.join(root, file))) continue;
     const [name, description] = pack.categories[category.slug];
     let html = setHead(categoryTemplate, { lang, route, title: `${name} | ${pack.ui.products}`, description });
     html = html.replace(/<main>[\s\S]*?<\/main>/, renderCategoryMain(lang, category));
-    write(`${lang}/${route}/index.html`, html);
+    write(file, ensureInquiryClientScript(html));
   }
 
   for (const [slug, product] of Object.entries(products)) {
     const route = `${productRoute(product)}/${slug}`;
+    const file = `${lang}/${route}/index.html`;
+    if (!rebuildPages && fs.existsSync(path.join(root, file))) {
+      const current = read(file);
+      const migrated = migrateProductInquiryHtml(current, productIdentifierForKey(slug));
+      if (migrated !== current) write(file, migrated);
+      continue;
+    }
     const [title, description] = pack.productCopy[slug];
     const image = `https://www.chigox.com/assets/products/endoscopy/${product.images[0]}`;
     let html = setHead(productTemplate, { lang, route, title, description, image });
     html = html.replace(/<main>[\s\S]*?<\/main>/, renderProductMain(lang, slug, product));
-    write(`${lang}/${route}/index.html`, html);
+    write(file, ensureInquiryClientScript(html));
   }
 
   const topRoute = "products/endoscopy-system";
-  let topHtml = setHead(topTemplate, { lang, route: topRoute, title: pack.ui.endoscopy, description: pack.categories["endoscope-system"][1] });
-  topHtml = topHtml.replace(/<main>[\s\S]*?<\/main>/, renderTopCategoryMain(lang));
-  write(`${lang}/${topRoute}/index.html`, topHtml);
-
-  for (const route of [
-    "products/endoscopy-system/cge-100",
-    "products/endoscopy-system/endoscope-system",
-    "products/endoscopy-system/endoscope-system/cge-100",
-  ]) {
-    const file = `${lang}/${route}/index.html`;
-    write(file, localizeExistingEndoscopyUi(read(file), lang));
+  const topFile = `${lang}/${topRoute}/index.html`;
+  if (rebuildPages || !fs.existsSync(path.join(root, topFile))) {
+    let topHtml = setHead(topTemplate, { lang, route: topRoute, title: pack.ui.endoscopy, description: pack.categories["endoscope-system"][1] });
+    topHtml = topHtml.replace(/<main>[\s\S]*?<\/main>/, renderTopCategoryMain(lang));
+    write(topFile, topHtml);
   }
 
-  for (const file of walkHtml(lang)) write(file, updateMenu(read(file), lang));
+  const cge100File = `${lang}/products/endoscopy-system/endoscope-system/cge-100/index.html`;
+  if (fs.existsSync(path.join(root, cge100File))) {
+    const current = read(cge100File);
+    const migrated = migrateProductInquiryHtml(current, productIdentifierForKey("cge-100"));
+    if (migrated !== current) write(cge100File, migrated);
+  }
+
+  if (rebuildPages) {
+    for (const route of [
+      "products/endoscopy-system/cge-100",
+      "products/endoscopy-system/endoscope-system",
+      "products/endoscopy-system/endoscope-system/cge-100",
+    ]) {
+      const file = `${lang}/${route}/index.html`;
+      write(file, localizeExistingEndoscopyUi(read(file), lang));
+    }
+  }
+
+  if (rebuildNavigation) {
+    for (const file of walkHtml(lang)) write(file, updateMenu(read(file), lang));
+  }
 }
 
 const canonicalRoutes = [
@@ -913,20 +956,22 @@ const canonicalRoutes = [
   ...Object.entries(products).map(([slug, product]) => `${productRoute(product)}/${slug}`),
 ];
 
-for (const route of canonicalRoutes) {
-  const englishFile = `${route}/index.html`;
-  write(englishFile, setHreflangOnly(read(englishFile), route));
-  for (const lang of languageCodes) {
-    const localizedFile = `${lang}/${route}/index.html`;
-    write(localizedFile, setHreflangOnly(read(localizedFile), route));
+if (rebuildSeo) {
+  for (const route of canonicalRoutes) {
+    const englishFile = `${route}/index.html`;
+    write(englishFile, setHreflangOnly(read(englishFile), route));
+    for (const lang of languageCodes) {
+      const localizedFile = `${lang}/${route}/index.html`;
+      write(localizedFile, setHreflangOnly(read(localizedFile), route));
+    }
   }
+
+  let sitemap = read("sitemap.xml");
+  const newUrls = ["", ...languageCodes].flatMap((lang) => canonicalRoutes.map((route) => localizedUrl(lang, route))).filter((url) => !sitemap.includes(`<loc>${url}</loc>`));
+  if (newUrls.length) sitemap = sitemap.replace("</urlset>", `${newUrls.map((url) => `  <url><loc>${url}</loc></url>`).join("\n")}\n</urlset>`);
+  write("sitemap.xml", sitemap);
+  console.log(`Added ${newUrls.length} URLs to sitemap.xml.`);
 }
 
-let sitemap = read("sitemap.xml");
-const newUrls = ["", ...languageCodes].flatMap((lang) => canonicalRoutes.map((route) => localizedUrl(lang, route))).filter((url) => !sitemap.includes(`<loc>${url}</loc>`));
-if (newUrls.length) sitemap = sitemap.replace("</urlset>", `${newUrls.map((url) => `  <url><loc>${url}</loc></url>`).join("\n")}\n</urlset>`);
-write("sitemap.xml", sitemap);
-
-console.log(`Generated ${languageCodes.length * 5} localized category pages and ${languageCodes.length * 9} localized product pages.`);
-console.log(`Updated Products menus in ${languageCodes.reduce((count, lang) => count + walkHtml(lang).length, 0)} localized pages.`);
-console.log(`Added ${newUrls.length} URLs to sitemap.xml.`);
+console.log(`Updated ${languageCodes.length * (Object.keys(products).length + 1)} localized Endoscopy product inquiry forms.`);
+console.log(`Full page rebuild: ${rebuildPages ? "enabled" : "disabled"}. Navigation rebuild: ${rebuildNavigation ? "enabled" : "disabled"}. SEO rebuild: ${rebuildSeo ? "enabled" : "disabled"}.`);

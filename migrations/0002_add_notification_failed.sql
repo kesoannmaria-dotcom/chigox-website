@@ -1,7 +1,3 @@
-PRAGMA foreign_keys = OFF;
-
-BEGIN TRANSACTION;
-
 CREATE TABLE contact_inquiries_v2 (
   inquiry_id TEXT PRIMARY KEY NOT NULL,
   idempotency_key TEXT NOT NULL UNIQUE,
@@ -113,7 +109,3 @@ CREATE INDEX idx_contact_inquiries_notification_retry
     notification_next_attempt_at,
     notification_attempts
   );
-
-COMMIT;
-
-PRAGMA foreign_keys = ON;

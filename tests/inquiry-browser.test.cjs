@@ -104,6 +104,10 @@ const PRODUCT_MIGRATION_SAMPLES = [
   ["pt-BR", "/pt/products/video-laryngoscope/reusable-video-laryngoscope/reusable-system/", "Reusable Video Laryngoscope"]
 ];
 
+const CONTACT_LOCALES = CGUC_LOCALES
+  .filter(({ code }) => ["es", "tr", "de", "it", "pl", "ko"].includes(code))
+  .map((locale) => ({ ...locale, path: `/${locale.code}/contact-us/` }));
+
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -597,6 +601,92 @@ test("migrated product samples preserve identifiers, images, and responsive layo
             .filter((src) => src && !src.startsWith("data:"))
             .map(() => true)
         )
+      );
+      await page.close();
+    }
+  }
+});
+
+test("six localized Contact forms submit general inquiries once with attribution", async () => {
+  for (const locale of CONTACT_LOCALES) {
+    const { page, posts } = await openForm({
+      pagePath: locale.path,
+      query: `?utm_source=google&utm_medium=organic&utm_campaign=contact_${locale.code}`
+    });
+    await page.locator('button[type="submit"]:not([disabled])').waitFor();
+    await fillCanonicalInquiry(page);
+    await page.locator('button[type="submit"]').evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    await page.getByText(locale.success, { exact: true }).waitFor();
+
+    assert.equal(posts.length, 1);
+    assert.doesNotMatch(posts[0].body, /name="product_code"/);
+    assert.match(posts[0].body, /name="product"\r\n\r\n\r\n/);
+    assert.match(posts[0].body, new RegExp(`name="language"\\r\\n\\r\\n${locale.htmlLang}`));
+    assert.match(posts[0].body, /name="utm_source"\r\n\r\ngoogle/);
+    assert.match(posts[0].body, new RegExp(`name="utm_campaign"\\r\\n\\r\\ncontact_${locale.code}`));
+    await page.close();
+  }
+});
+
+test("six localized Contact forms show localized storage failures", async () => {
+  for (const locale of CONTACT_LOCALES) {
+    const { page, posts } = await openForm({
+      pagePath: locale.path,
+      apiStatus: 503,
+      apiBody: { ok: false, code: "STORAGE_UNAVAILABLE" }
+    });
+    await page.locator('button[type="submit"]:not([disabled])').waitFor();
+    await fillCanonicalInquiry(page);
+    await page.locator('button[type="submit"]').click();
+    await page.getByText(locale.storageError, { exact: true }).waitFor();
+
+    assert.equal(posts.length, 1);
+    assert.equal(await page.locator('[name="name"]').inputValue(), "CHIGOX MOCK TEST");
+    assert.equal(await page.getByText(locale.success, { exact: true }).count(), 0);
+    await page.close();
+  }
+});
+
+test("six localized Contact forms require a message but allow an empty product", async () => {
+  for (const locale of CONTACT_LOCALES) {
+    const { page, posts } = await openForm({ pagePath: locale.path });
+    await page.locator('button[type="submit"]:not([disabled])').waitFor();
+    await page.locator('[name="name"]').fill("CHIGOX MOCK TEST");
+    await page.locator('[name="email"]').fill("mock@example.com");
+    await page.locator('button[type="submit"]').click();
+
+    assert.equal(posts.length, 0);
+    assert.equal(await page.locator('[name="product"]').inputValue(), "");
+    assert.equal(
+      await page.locator('[name="message"]').evaluate((field) => field.validity.valueMissing),
+      true
+    );
+    await page.close();
+  }
+});
+
+test("six localized Contact forms fit desktop and mobile viewports", async () => {
+  for (const locale of CONTACT_LOCALES) {
+    for (const viewport of [
+      { width: 1440, height: 1000 },
+      { width: 390, height: 844 }
+    ]) {
+      const { page, posts } = await openForm({ pagePath: locale.path });
+      await page.setViewportSize(viewport);
+      await page.locator('button[type="submit"]:not([disabled])').waitFor();
+      const form = page.locator("form.inquiry-form");
+      await form.scrollIntoViewIfNeeded();
+
+      assert.equal(await form.isVisible(), true);
+      assert.equal(await form.getAttribute("action"), "/api/inquiry");
+      assert.equal(await page.locator('script[src="/assets/js/inquiry-turnstile.js"]').count(), 1);
+      assert.equal(posts.length, 0);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        true
       );
       await page.close();
     }

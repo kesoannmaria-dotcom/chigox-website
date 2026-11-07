@@ -73,7 +73,7 @@ export function ensureInquiryClientScript(html) {
   return html.replace("</body>", `  <script src="${source}" defer></script>\n</body>`);
 }
 
-function normalizeForm(form, identifier) {
+function normalizeForm(form, identifier = "") {
   const opening = form.match(/^<form\b[^>]*>/)?.[0];
   if (!opening) throw new Error("Inquiry form opening tag is missing");
 
@@ -106,15 +106,26 @@ function normalizeForm(form, identifier) {
     throw new Error(`Inquiry form has ${fieldIndex} named controls; expected 5`);
   }
 
-  return `<form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">
-    <input type="hidden" name="product_code" value="${escapeAttribute(identifier)}">${body}</form>`;
+  const productCode = identifier
+    ? `\n    <input type="hidden" name="product_code" value="${escapeAttribute(identifier)}">`
+    : "";
+  return `<form class="inquiry-form" action="/api/inquiry" method="post" accept-charset="UTF-8">${productCode}${body}</form>`;
 }
 
-export function migrateProductInquiryHtml(html, identifier) {
+function migrateInquiryHtml(html, identifier = "") {
   const forms = [...html.matchAll(/<form class="inquiry-form"[\s\S]*?<\/form>/g)];
   if (forms.length !== 1) {
     throw new Error(`Expected one inquiry form, found ${forms.length}`);
   }
   const migrated = html.replace(forms[0][0], normalizeForm(forms[0][0], identifier));
   return ensureInquiryClientScript(migrated);
+}
+
+export function migrateProductInquiryHtml(html, identifier) {
+  if (!identifier) throw new Error("Product inquiry identifier is required");
+  return migrateInquiryHtml(html, identifier);
+}
+
+export function migrateContactInquiryHtml(html) {
+  return migrateInquiryHtml(html);
 }

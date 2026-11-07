@@ -17,6 +17,81 @@ let server;
 const CGUC_PATH =
   "/products/ultrasound/handheld-ultrasound/convex-scanner/cgu-c/";
 
+const CGUC_LOCALES = [
+  {
+    code: "en",
+    htmlLang: "en",
+    path: CGUC_PATH,
+    labels: ["Name", "Email", "Company", "Product", "Message"],
+    success: "Thank you. Your inquiry has been received.",
+    storageError: "Your inquiry could not be saved. Please try again."
+  },
+  {
+    code: "es",
+    htmlLang: "es",
+    path: `/es${CGUC_PATH}`,
+    labels: ["Nombre", "Correo electrónico", "Empresa", "Producto", "Mensaje"],
+    success: "Gracias. Hemos recibido su consulta.",
+    storageError: "No se pudo guardar la consulta. Inténtelo de nuevo."
+  },
+  {
+    code: "tr",
+    htmlLang: "tr",
+    path: `/tr${CGUC_PATH}`,
+    labels: ["Ad", "E-posta", "Şirket", "Ürün", "Mesaj"],
+    success: "Teşekkürler. Talebiniz alındı.",
+    storageError: "Talebiniz kaydedilemedi. Lütfen tekrar deneyin."
+  },
+  {
+    code: "de",
+    htmlLang: "de",
+    path: `/de${CGUC_PATH}`,
+    labels: ["Name", "E-Mail", "Unternehmen", "Produkt", "Nachricht"],
+    success: "Vielen Dank. Ihre Anfrage ist eingegangen.",
+    storageError: "Ihre Anfrage konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+  },
+  {
+    code: "it",
+    htmlLang: "it",
+    path: `/it${CGUC_PATH}`,
+    labels: ["Nome", "Email", "Azienda", "Prodotto", "Messaggio"],
+    success: "Grazie. La richiesta è stata ricevuta.",
+    storageError: "Non è stato possibile salvare la richiesta. Riprova."
+  },
+  {
+    code: "pl",
+    htmlLang: "pl",
+    path: `/pl${CGUC_PATH}`,
+    labels: ["Imię", "E-mail", "Firma", "Produkt", "Wiadomość"],
+    success: "Dziękujemy. Zapytanie zostało odebrane.",
+    storageError: "Nie udało się zapisać zapytania. Spróbuj ponownie."
+  },
+  {
+    code: "ko",
+    htmlLang: "ko",
+    path: `/ko${CGUC_PATH}`,
+    labels: ["이름", "이메일", "회사", "제품", "메시지"],
+    success: "감사합니다. 문의가 접수되었습니다.",
+    storageError: "문의를 저장할 수 없습니다. 다시 시도해 주세요."
+  },
+  {
+    code: "fr",
+    htmlLang: "fr",
+    path: `/fr${CGUC_PATH}`,
+    labels: ["Nom", "Courriel", "Entreprise", "Produit", "Message"],
+    success: "Merci. Votre demande a bien été reçue.",
+    storageError: "Votre demande n'a pas pu être enregistrée. Veuillez réessayer."
+  },
+  {
+    code: "pt",
+    htmlLang: "pt-BR",
+    path: `/pt${CGUC_PATH}`,
+    labels: ["Nome", "E-mail", "Empresa", "Produto", "Mensagem"],
+    success: "Obrigado. Sua consulta foi recebida.",
+    storageError: "Não foi possível salvar sua consulta. Tente novamente."
+  }
+];
+
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
@@ -155,6 +230,14 @@ async function fillValidInquiry(page) {
   await page.getByLabel("Company", { exact: true }).fill("CHIGOX QA");
   await page.getByLabel("Product", { exact: true }).fill("CGU-C");
   await page.getByLabel("Message", { exact: true }).fill("Mock submission only");
+}
+
+async function fillCanonicalInquiry(page) {
+  const form = page.locator("form.inquiry-form");
+  await form.locator('[name="name"]').fill("CHIGOX MOCK TEST");
+  await form.locator('[name="email"]').fill("mock@example.com");
+  await form.locator('[name="company"]').fill("CHIGOX QA");
+  await form.locator('[name="message"]').fill("Mock submission only");
 }
 
 test("successful submit sends one POST and shows success", async () => {
@@ -366,5 +449,98 @@ test("CGU-C form keeps its desktop and mobile layout within the viewport", async
       true
     );
     await page.close();
+  }
+});
+
+test("all nine CGU-C pages preserve localized labels and canonical field mapping", async () => {
+  for (const locale of CGUC_LOCALES) {
+    const { page } = await openForm({ pagePath: locale.path });
+    await page.getByText(/Security verification ready\.|Verificación de seguridad lista\.|Güvenlik doğrulaması hazır\.|Sicherheitsprüfung ist bereit\.|Verifica di sicurezza pronta\.|Weryfikacja bezpieczeństwa jest gotowa\.|보안 인증이 준비되었습니다\.|La vérification de sécurité est prête\.|Verificação de segurança pronta\./).waitFor();
+    assert.equal(await page.locator("html").getAttribute("lang"), locale.htmlLang);
+
+    const form = page.locator("form.inquiry-form");
+    assert.equal(await form.getAttribute("action"), "/api/inquiry");
+    assert.equal(await form.locator('[name="product_code"]').inputValue(), "CGU-C");
+    assert.equal(await form.locator('[name="message"]').getAttribute("required"), "");
+    assert.equal(
+      await page.locator('script[src="/assets/js/inquiry-turnstile.js"]').count(),
+      1
+    );
+
+    for (const [index, field] of ["name", "email", "company", "product", "message"].entries()) {
+      const label = form.locator(`[name="${field}"]`).locator("xpath=ancestor::label");
+      assert.match((await label.textContent()).trim(), new RegExp(`^${locale.labels[index]}`));
+    }
+    await page.close();
+  }
+});
+
+test("all nine CGU-C pages submit localized success and attribution once", async () => {
+  for (const locale of CGUC_LOCALES) {
+    const { page, posts } = await openForm({
+      pagePath: locale.path,
+      query: `?utm_source=google&utm_medium=organic&utm_campaign=cgu_c_${locale.code}`
+    });
+    await page.locator('button[type="submit"]:not([disabled])').waitFor();
+    await fillCanonicalInquiry(page);
+    await page.locator('button[type="submit"]').evaluate((button) => {
+      button.click();
+      button.click();
+    });
+    await page.getByText(locale.success, { exact: true }).waitFor();
+
+    assert.equal(posts.length, 1);
+    assert.match(posts[0].body, /name="product_code"\r\n\r\nCGU-C/);
+    assert.match(posts[0].body, new RegExp(`name="language"\\r\\n\\r\\n${locale.htmlLang}`));
+    assert.match(posts[0].body, /name="utm_source"\r\n\r\ngoogle/);
+    assert.match(posts[0].body, /name="utm_medium"\r\n\r\norganic/);
+    assert.match(
+      posts[0].body,
+      new RegExp(`name="utm_campaign"\\r\\n\\r\\ncgu_c_${locale.code}`)
+    );
+    await page.close();
+  }
+});
+
+test("all nine CGU-C pages show localized API failure without success", async () => {
+  for (const locale of CGUC_LOCALES) {
+    const { page, posts } = await openForm({
+      pagePath: locale.path,
+      apiStatus: 503,
+      apiBody: { ok: false, code: "STORAGE_UNAVAILABLE" }
+    });
+    await page.locator('button[type="submit"]:not([disabled])').waitFor();
+    await fillCanonicalInquiry(page);
+    await page.locator('button[type="submit"]').click();
+    await page.getByText(locale.storageError, { exact: true }).waitFor();
+
+    assert.equal(posts.length, 1);
+    assert.equal(await page.getByText(locale.success, { exact: true }).count(), 0);
+    assert.equal(
+      await page.locator('[name="name"]').inputValue(),
+      "CHIGOX MOCK TEST"
+    );
+    await page.close();
+  }
+});
+
+test("all nine CGU-C pages fit desktop and mobile viewports", async () => {
+  for (const locale of CGUC_LOCALES) {
+    for (const viewport of [
+      { width: 1440, height: 1000 },
+      { width: 390, height: 844 }
+    ]) {
+      const { page } = await openForm({ pagePath: locale.path });
+      await page.setViewportSize(viewport);
+      await page.locator('button[type="submit"]:not([disabled])').waitFor();
+      const form = page.locator("form.inquiry-form");
+      await form.scrollIntoViewIfNeeded();
+      assert.equal(await form.isVisible(), true);
+      assert.equal(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        true
+      );
+      await page.close();
+    }
   }
 });
